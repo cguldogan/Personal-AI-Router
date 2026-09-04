@@ -107,6 +107,9 @@ jobs:
       - name: Install desktop dependencies
         working-directory: desktop
         run: npm ci --no-audit --no-fund
+      - name: Build application bundles (electron-vite)
+        working-directory: desktop
+        run: npm run build
       - name: Build package
         working-directory: desktop
         env:
