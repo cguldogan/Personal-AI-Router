@@ -5,6 +5,12 @@ SPDX-License-Identifier: Apache-2.0
 
 # NVIDIA Personal AI Router (PAIR)
 
+> **This is a fork.** It adds vLLM as an engine, nodes across overlay networks
+> such as Tailscale, and scripted pairing for headless machines, all proposed
+> upstream as PRs #9, #10, and #11. **To install this fork, follow
+> [INSTALL-FORK.md](INSTALL-FORK.md).** Builds from here are unsigned and are
+> not NVIDIA releases. The rest of this README is the upstream documentation.
+
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](SECURITY.md)
 
