@@ -22,8 +22,8 @@ three. Builds from this fork are **unsigned**; they are not NVIDIA releases.
 | Machine | Path |
 | --- | --- |
 | Linux GPU box with no desktop (DGX, DGX Spark, a server) | [Headless](#headless-linux-or-macos) |
-| Linux or macOS with a desktop | [Desktop from source](#desktop-application-from-source) or a package from [Releases](../../releases) |
-| Windows | Desktop from source, or the `.exe` from [Releases](../../releases) |
+| Linux or macOS with a desktop | the `.deb` or `.dmg` from [Releases](../../releases), or [build from source](#desktop-application-from-source) |
+| Windows | the `.exe` from [Releases](../../releases), or build from source |
 
 Every machine that should take part in routing runs PAIR. A machine that only
 runs an engine can be a routing target but cannot be paired.
@@ -61,12 +61,23 @@ An engine already running on the box is adopted automatically: vLLM on port
 (`--nnodes N`) is adopted on its head node only; the headless ranks correctly
 show no engine.
 
+## Desktop application from a release package
+
+[Releases](../../releases) carries `NVPAIR-Setup-<version>-<arch>.dmg` (macOS,
+Apple Silicon), `.deb` (Debian/Ubuntu, x64 and arm64), and `.exe` (Windows x64).
+Install them the way the upstream README describes. They are **unsigned**:
+macOS blocks the first launch until you right-click the app and choose Open (or
+run `xattr -d com.apple.quarantine "/Applications/NVIDIA Personal AI Router.app"`),
+and Windows shows a SmartScreen prompt. A package from here never checks an
+update feed; upgrade by installing the next release over it. Settings, cluster
+identity, and pairings are kept.
+
 ## Desktop application from source
 
 Needs Go 1.25+, Node 25.5+ (Node 23 works in practice), and `jq`.
 
 ```bash
-git clone --branch feat/vllm-tailscale https://github.com/cguldogan/Personal-AI-Router.git
+git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: feat/vllm-tailscale
 cd Personal-AI-Router/desktop
 npm install
 npm start                        # builds the services, then opens the app
