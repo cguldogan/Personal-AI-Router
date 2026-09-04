@@ -86,10 +86,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  script: 'build:electron:linux:x64',   arch: x64,   glob: 'desktop/release/**/*.deb' }
-          - { os: ubuntu-24.04-arm, script: 'build:electron:linux:arm64', arch: arm64, glob: 'desktop/release/**/*.deb' }
-          - { os: macos-latest,   script: 'build:electron:mac:arm64',   arch: arm64, glob: 'desktop/release/**/*.dmg' }
-          - { os: windows-latest, script: 'build:electron:win:x64',     arch: x64,   glob: 'desktop/release/**/*.exe' }
+          - { os: ubuntu-latest,  script: 'build:electron:linux:x64',   arch: x64,   glob: 'desktop/release/**/NVPAIR-Setup-*.deb' }
+          - { os: ubuntu-24.04-arm, script: 'build:electron:linux:arm64', arch: arm64, glob: 'desktop/release/**/NVPAIR-Setup-*.deb' }
+          - { os: macos-latest,   script: 'build:electron:mac:arm64',   arch: arm64, glob: 'desktop/release/**/NVPAIR-Setup-*.dmg' }
+          - { os: windows-latest, script: 'build:electron:win:x64',     arch: x64,   glob: 'desktop/release/**/NVPAIR-Setup-*.exe' }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
