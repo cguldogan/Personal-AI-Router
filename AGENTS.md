@@ -13,6 +13,14 @@ This file is the short orientation. [CONTRIBUTING.md](CONTRIBUTING.md) is the
 contribution policy and [Developer Guide](docs/developing.mdx) is the code tour;
 both are normative where this file is only a summary.
 
+## Installing or deploying PAIR (fork)
+
+If the task is to **install, deploy, upgrade, or pair** PAIR on a machine rather
+than to change its code, follow [INSTALL-FORK.md](INSTALL-FORK.md). It covers
+the headless one-line installer, the desktop build, pairing across Tailscale,
+and the scripted `nvpair-tui accept --pin` flow. Do not improvise an install
+from the build instructions below when that guide applies.
+
 ## Repository Layout
 
 ```text

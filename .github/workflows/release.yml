@@ -1,0 +1,123 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Fork release: on a version tag, publish prebuilt bundles so a machine can be
+# set up without a Go or Node toolchain.
+#
+#   git tag v0.93.0-fork.1 && git push origin v0.93.0-fork.1
+#
+# The "services" job cross-compiles the thirteen Go binaries for every
+# supported OS/arch from one Linux runner (the modules are pure Go) and attaches
+# them as pair-services-<tag>-<os>-<arch>.tar.gz (.zip on Windows). Those are
+# what scripts/install-headless.sh downloads.
+#
+# The "desktop" job builds the unsigned desktop packages (.deb, .dmg, .exe) with
+# the repository's own electron-builder scripts. They are unsigned because
+# signing lives outside this repository, so macOS shows a Gatekeeper prompt and
+# Windows shows SmartScreen. That job may fail without affecting the services
+# assets.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to (re)build assets for
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  services:
+    name: services bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: services/**/go.sum
+      - name: Cross-build every target
+        run: |
+          set -euo pipefail
+          cd services
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            goos="${target%/*}"; goarch="${target#*/}"
+            name="pair-services-${TAG}-${goos}-${goarch}"
+            stage="../dist/$name"
+            ./crossbuild.sh "$goos" "$goarch" "$stage/bin"
+            cp ../LICENSE ../THIRD_PARTY_NOTICES.md "$stage/"
+            cp ../scripts/install-headless.sh "$stage/"
+            cat > "$stage/README.txt" <<EOF
+          NVIDIA Personal AI Router services, fork build ${TAG} for ${goos}/${goarch}.
+          Headless use: run bin/nvpair-tui (Linux/macOS) inside tmux, or bin\\nvpair-tui.exe.
+          Unsigned; built by GitHub Actions from https://github.com/${GITHUB_REPOSITORY}.
+          EOF
+            if [ "$goos" = windows ]; then
+              (cd ../dist && zip -qr "$name.zip" "$name")
+            else
+              (cd ../dist && tar czf "$name.tar.gz" "$name")
+            fi
+            rm -rf "$stage"
+          done
+          ls -la ../dist
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --notes "Fork build $TAG. Services bundles are self-contained; see scripts/install-headless.sh. Desktop packages, when present, are unsigned." --prerelease
+          gh release upload "$TAG" dist/* --clobber
+
+  desktop:
+    name: desktop package (${{ matrix.os }} ${{ matrix.arch }})
+    needs: services
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  script: 'build:electron:linux:x64',   arch: x64,   glob: 'desktop/release/**/*.deb' }
+          - { os: ubuntu-24.04-arm, script: 'build:electron:linux:arm64', arch: arm64, glob: 'desktop/release/**/*.deb' }
+          - { os: macos-latest,   script: 'build:electron:mac:arm64',   arch: arm64, glob: 'desktop/release/**/*.dmg' }
+          - { os: windows-latest, script: 'build:electron:win:x64',     arch: x64,   glob: 'desktop/release/**/*.exe' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+      - name: Install jq (Windows)
+        if: runner.os == 'Windows'
+        run: choco install -y jq
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci --no-audit --no-fund
+      - name: Build package
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run ${{ matrix.script }}
+      - name: Publish package
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=( ${{ matrix.glob }} )
+          [ ${#files[@]} -gt 0 ] || { echo "no package produced"; exit 1; }
+          gh release upload "$TAG" "${files[@]}" --clobber
