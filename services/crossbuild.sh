@@ -22,7 +22,10 @@ if [[ $# -ne 3 ]]; then
 fi
 GOOS_TARGET="$1"
 GOARCH_TARGET="$2"
-OUT="$3"
+# Resolve the output directory to an absolute path first: each go build runs
+# from its component directory, where a relative path would land elsewhere.
+mkdir -p "$3"
+OUT="$(cd "$3" && pwd)"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSIONS_FILE="$ROOT/versions.json"
@@ -56,4 +59,9 @@ for name in "${COMPONENTS[@]}"; do
             go build -trimpath -ldflags "-s -w -X main.Version=$version" -o "$OUT/$name$SUFFIX" .
     )
 done
-echo " Done: $(ls "$OUT" | wc -l | tr -d ' ') binaries in $OUT"
+built=$(find "$OUT" -maxdepth 1 -type f | wc -l | tr -d ' ')
+if [[ "$built" -ne ${#COMPONENTS[@]} ]]; then
+    echo "ERROR: expected ${#COMPONENTS[@]} binaries in $OUT, found $built" >&2
+    exit 1
+fi
+echo " Done: $built binaries in $OUT"
