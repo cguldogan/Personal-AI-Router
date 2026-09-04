@@ -24,6 +24,14 @@ missing, `cd desktop && npm install --no-audit --no-fund`.
 
 ## Launch
 
+**Only one PAIR per machine.** The fork's released app is installed at
+`/Applications/PAIR.app` (from the fork's GitHub release; unsigned, quarantine
+already cleared). It holds the same fixed ports and the same data directory as
+the dev build, so quit it before `npm start` and relaunch it afterwards
+(`open -a /Applications/PAIR.app`). Pairings and identity are shared between
+the two; nothing is lost by switching.
+
+
 ```bash
 cd desktop
 npm start > /tmp/pair-start.log 2>&1 &     # builds 13 Go binaries + tools, then electron-vite dev
