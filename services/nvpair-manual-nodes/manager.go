@@ -221,9 +221,15 @@ type ManualNodeStatus struct {
 	// LM Studio is probed on its default OpenAI-API port the same way Ollama
 	// is on 11434, so a manually-added node running LM Studio can be bridged
 	// into lmstudio-proxy by a supervising broker.
-	LMStudioUp     bool        `json:"lmstudio_up"`
-	LMStudioPort   int         `json:"lmstudio_port"`
-	LMStudioModels []string    `json:"lmstudio_models,omitempty"`
+	LMStudioUp     bool     `json:"lmstudio_up"`
+	LMStudioPort   int      `json:"lmstudio_port"`
+	LMStudioModels []string `json:"lmstudio_models,omitempty"`
+	// vLLM is probed on its default OpenAI-API port alongside LM Studio. Both
+	// speak the same API, so /v1/models alone cannot tell them apart; the probe
+	// additionally requires vLLM's own /version, which LM Studio does not serve.
+	VLLMUp         bool        `json:"vllm_up"`
+	VLLMPort       int         `json:"vllm_port"`
+	VLLMModels     []string    `json:"vllm_models,omitempty"`
 	NodeInfoUp     bool        `json:"node_info_up"`
 	NodeInfoPort   int         `json:"node_info_port"`
 	TLSEnabled     bool        `json:"tls_enabled,omitempty"`
@@ -270,9 +276,9 @@ type trackedNode struct {
 	entry  ManualEntry
 	status ManualNodeStatus
 
-	// consecutiveFails counts back-to-back probes where neither
-	// service answered (OllamaUp && NodeInfoUp both false). Reset
-	// to 0 on any probe where at least one service responded.
+	// consecutiveFails counts back-to-back probes where no service
+	// answered — no engine and no node-info. Reset to 0 on any probe
+	// where at least one service responded.
 	// Used to gate probe-failed errors:report emits at
 	// probeFailThreshold so a single transient failure doesn't
 	// generate UI noise.
@@ -399,12 +405,12 @@ func (m *Manager) probeNode(entry ManualEntry) {
 	// node-info is asked FIRST, because its answer decides what kind of node this
 	// is and therefore what else may be probed at all.
 	//
-	// A PAIR node's 11434 and 1234 are its proxy facades, not its engines: the
-	// engines bind loopback and the facades refuse plaintext from anything but
-	// loopback. Probing them would 403 every cycle and report a healthy peer as
-	// having no engines, so a node that identifies itself as PAIR is never probed
-	// there. Its engines are read from its engine manager instead, and it is
-	// routed to through those same facades over cluster mTLS.
+	// A PAIR node's 11434, 1234 and 8000 are its proxy facades, not its engines:
+	// the engines bind loopback and the facades refuse plaintext from anything
+	// but loopback. Probing them would 403 every cycle and report a healthy peer
+	// as having no engines, so a node that identifies itself as PAIR is never
+	// probed there. Its engines are read from its engine manager instead, and it
+	// is routed to through those same facades over cluster mTLS.
 	nodeInfoUp, info := m.probeNodeInfo(entry, ports)
 
 	// What this node was on the previous cycle, read before anything else runs:
@@ -434,6 +440,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		Address:        addr,
 		OllamaPort:     ports.Ollama,
 		LMStudioPort:   ports.LMStudio,
+		VLLMPort:       ports.VLLM,
 		NodeInfoUp:     nodeInfoUp,
 		NodeInfoPort:   m.nodeInfoProbePort(entry, ports),
 		TLSEnabled:     entry.TLSPort > 0,
@@ -477,7 +484,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		}
 	}
 
-	reachable := newStatus.OllamaUp || newStatus.LMStudioUp || newStatus.NodeInfoUp
+	reachable := newStatus.OllamaUp || newStatus.LMStudioUp || newStatus.VLLMUp || newStatus.NodeInfoUp
 
 	m.mu.Lock()
 	tn, exists := m.nodes[id]
@@ -506,6 +513,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 
 	changed := prev.OllamaUp != newStatus.OllamaUp ||
 		prev.LMStudioUp != newStatus.LMStudioUp ||
+		prev.VLLMUp != newStatus.VLLMUp ||
 		prev.NodeInfoUp != newStatus.NodeInfoUp ||
 		prev.HostUUID != newStatus.HostUUID ||
 		prev.PairNode != newStatus.PairNode ||
@@ -516,6 +524,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		!byEngineEqual(prev.LoadedByEngine, newStatus.LoadedByEngine) ||
 		!sliceEqual(prev.OllamaModels, newStatus.OllamaModels) ||
 		!sliceEqual(prev.LMStudioModels, newStatus.LMStudioModels) ||
+		!sliceEqual(prev.VLLMModels, newStatus.VLLMModels) ||
 		!gpusEqual(prev.GPUs, newStatus.GPUs) ||
 		!cpuEqual(prev.CPU, newStatus.CPU) ||
 		!memoryEqual(prev.Memory, newStatus.Memory) ||
@@ -606,6 +615,14 @@ func (m *Manager) engineLegs(ports ManualPorts) []engineLeg {
 				s.LMStudioUp, s.LMStudioModels = up, models
 			},
 		},
+		{
+			name:  "vllm",
+			port:  ports.VLLM,
+			probe: m.probeVLLM,
+			apply: func(s *ManualNodeStatus, up bool, models []string) {
+				s.VLLMUp, s.VLLMModels = up, models
+			},
+		},
 	}
 }
 
@@ -650,6 +667,76 @@ func (m *Manager) probeLMStudio(addr string, port int) (bool, []string) {
 		"addr", addr, "port", port, "models", len(models),
 		"duration_ms", time.Since(start).Milliseconds())
 	return true, models
+}
+
+// probeVLLM checks vLLM's OpenAI-compatible server on addr:port. LM Studio
+// serves the same /v1/models, so a model list alone would let one engine be
+// reported as the other on a host running both. vLLM additionally serves
+// GET /version returning {"version": "..."} and LM Studio does not, so that
+// route is the disambiguator: both must answer before the node is reported as
+// running vLLM. Returns whether it is up and the model ids it serves.
+func (m *Manager) probeVLLM(addr string, port int) (bool, []string) {
+	if !m.probeVLLMVersion(addr, port) {
+		return false, nil
+	}
+	url := "http://" + net.JoinHostPort(addr, strconv.Itoa(port)) + "/v1/models"
+	start := time.Now()
+	resp, err := m.client.Get(url)
+	if err != nil {
+		slog.Debug("manual probe vllm failed",
+			"addr", addr, "port", port, "duration_ms", time.Since(start).Milliseconds(), "err", err)
+		return false, nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("manual probe vllm non-OK",
+			"addr", addr, "port", port, "status", resp.StatusCode,
+			"duration_ms", time.Since(start).Milliseconds())
+		return false, nil
+	}
+	var result struct {
+		Data *[]struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.Data == nil {
+		// /version identified it as vLLM, but its model list is not the OpenAI
+		// shape. Nothing can be routed to it, so it is not usable here.
+		slog.Debug("manual probe vllm model list unusable", "addr", addr, "port", port, "err", err)
+		return false, nil
+	}
+	models := make([]string, 0, len(*result.Data))
+	for _, d := range *result.Data {
+		if d.ID != "" {
+			models = append(models, d.ID)
+		}
+	}
+	slog.Debug("manual probe vllm up",
+		"addr", addr, "port", port, "models", len(models),
+		"duration_ms", time.Since(start).Milliseconds())
+	return true, models
+}
+
+// probeVLLMVersion reports whether addr:port answers vLLM's GET /version with a
+// JSON body carrying a version field.
+func (m *Manager) probeVLLMVersion(addr string, port int) bool {
+	url := "http://" + net.JoinHostPort(addr, strconv.Itoa(port)) + "/version"
+	resp, err := m.client.Get(url)
+	if err != nil {
+		slog.Debug("manual probe vllm version failed", "addr", addr, "port", port, "err", err)
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	var body struct {
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return false
+	}
+	return body.Version != ""
 }
 
 func (m *Manager) probeOllama(addr string, port int) (bool, []string) {
@@ -820,6 +907,7 @@ func (m *Manager) addNode(entry ManualEntry) ManualNodeStatus {
 		Address:      entry.Address,
 		OllamaPort:   ports.Ollama,
 		LMStudioPort: ports.LMStudio,
+		VLLMPort:     ports.VLLM,
 		NodeInfoPort: m.nodeInfoProbePort(entry, ports),
 		TLSEnabled:   entry.TLSPort > 0,
 		MTLSRequired: entry.TLSPort > 0 && entry.MTLS,

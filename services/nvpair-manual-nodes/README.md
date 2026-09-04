@@ -9,7 +9,7 @@ A Go service for managing manually configured nodes on networks where mDNS disco
 
 There are two kinds of manual node, and one probe tells them apart. **node-info is asked first**, and its answer decides everything else:
 
-- **A bare inference host** — Ollama or LM Studio on a machine that does not run PAIR. It serves no `/v1/node-info`, so its engines are probed on their own ports in plain HTTP and a supervising broker bridges it into the local proxies as a routing target. This is what manual nodes were originally for.
+- **A bare inference host** — Ollama, LM Studio, or vLLM on a machine that does not run PAIR. It serves no `/v1/node-info`, so its engines are probed on their own ports in plain HTTP and a supervising broker bridges it into the local proxies as a routing target. This is what manual nodes were originally for.
 - **A PAIR node** — it answers `/v1/node-info` *with a `services` map*. It is then reported with `pair_node: true`, its cluster principal, its service map, and its model inventory read from its engine manager over cluster mTLS. A supervising broker folds it into the discovery directory as if it had been found over mDNS.
 
 A PAIR node is **never** probed on its engine ports. On such a node `:11434` and `:1234` are the proxy facades, which refuse plaintext from anything but loopback, so a probe there is a guaranteed `403` that would report a healthy peer as having no engines.
@@ -57,6 +57,9 @@ Emitted when a manually added node has been probed and its initial status determ
     "lmstudio_up":true,
     "lmstudio_port":1234,
     "lmstudio_models":["qwen2.5-7b-instruct"],
+    "vllm_up":true,
+    "vllm_port":8000,
+    "vllm_models":["Qwen/Qwen3-8B"],
     "node_info_up":true,
     "node_info_port":14318,
     "pair_node":false,
@@ -68,7 +71,9 @@ Emitted when a manually added node has been probed and its initial status determ
 }
 ```
 
-Each node is probed for both inference engines: Ollama on its default `:11434` (`GET /` + `/api/tags`) and LM Studio on its default `:1234` (`GET /v1/models`, which doubles as the liveness check and the model list). `lmstudio_up` / `lmstudio_port` / `lmstudio_models` mirror the `ollama_*` fields and let a supervising broker bridge the node into `lmstudio-proxy` the same way it bridges Ollama into `ollama-proxy`. A node can run either engine, both, or neither.
+Each node is probed for every inference engine: Ollama on its default `:11434` (`GET /` + `/api/tags`), LM Studio on its default `:1234` (`GET /v1/models`, which doubles as the liveness check and the model list), and vLLM on its default `:8000`. The `lmstudio_*` and `vllm_*` fields mirror the `ollama_*` ones and let a supervising broker bridge the node into the right proxy the same way it bridges Ollama into `ollama-proxy`. A node can run any combination of them, or none.
+
+vLLM is OpenAI-compatible, so `/v1/models` alone cannot tell it from LM Studio. The vLLM probe therefore also requires `GET /version` to answer 200 with a JSON `version` field, which LM Studio does not serve — both must pass before a node is reported as running vLLM.
 
 ### `node/updated`
 
@@ -101,7 +106,7 @@ A hostname is preferred over an IP literal: probe clients disable keep-alives sp
 |---|---|---|
 | `address` | Yes | IP address or host name of the node, with no port. A `host:port` string is **rejected** with an actionable error: every probe appends its own service port, so such an entry could never be reached |
 | `name` | No | Friendly name (used as node ID; defaults to `manual:<address>`) |
-| `ports` | No | Per-service port overrides: `{node_info, cluster, ollama, lmstudio, vllm}`. An unset field keeps that service's default. Persisted and echoed back as `ports`. `vllm` is carried but not probed yet |
+| `ports` | No | Per-service port overrides: `{node_info, cluster, ollama, lmstudio, vllm}`. An unset field keeps that service's default. Persisted and echoed back as `ports`. |
 | `tls_port` | No | Probe node-info over HTTPS on this port instead of plain HTTP. Takes precedence over `ports.node_info`, since it names an HTTPS listener and therefore names its port. Echoed back as `tls_enabled` |
 | `mtls` | No | Stored and echoed back as `mtls_required`. The probe transport itself is chosen by `tls_port` and live cluster membership, so this field records intent rather than driving it |
 
@@ -149,6 +154,7 @@ Each manual node is probed every 10 seconds, with a 3-second timeout per leg. **
 - Then, **only for a bare host** (node-info reported no service map):
   - **Ollama** on port 11434 (or `ports.ollama`): health check (`GET /`) and model list (`GET /api/tags`)
   - **LM Studio** on port 1234 (or `ports.lmstudio`): `GET /v1/models`, which doubles as the liveness check and the model list
+  - **vLLM** on port 8000 (or `ports.vllm`): `GET /version` (the disambiguator from any other OpenAI-compatible server) followed by `GET /v1/models` for the model list
 - Or, **only for a PAIR node**, its model inventory from its engine manager (`GET /v1/models` on the `em` port from the service map) over cluster mTLS, pinned to the peer's cluster principal. No pin, no models: a peer does not serve its inventory to a stranger, so the node appears with its hardware and gains its models once paired.
 
 A node can have any combination of these, or none if the target is unreachable. Status changes trigger `node/updated` events. Because change detection compares CPU, memory, and GPU values, a node running node-info emits a `node/updated` on most probe cycles as utilization moves.
