@@ -77,6 +77,17 @@ tailnet.
 4. **Read the PIN to the other machine.** Someone there accepts the invitation
    and types the six digits. This is the same PIN pairing as on a LAN.
 
+   If the peer is a headless box with no screen, nobody has to be sitting at it.
+   With the terminal interface running there, accept over SSH instead:
+
+   ```bash
+   ssh gpu-box 'NVPAIR_PIN=402199 nvpair-tui accept'
+   ```
+
+   It exits `0` once the machines are paired. Refer to
+   [Pair from a script or over SSH](terminal-interface.mdx#pair-from-a-script-or-over-ssh)
+   for the other direction and for two headless machines.
+
 5. **Check the result.** The peer's card should show its GPU, CPU, and memory
    within a probe cycle, and its models shortly after the pairing completes.
    Models arrive only once you are paired: a peer serves its model list to
