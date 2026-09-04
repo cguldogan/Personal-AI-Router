@@ -67,7 +67,7 @@ show no engine.
 Apple Silicon), `.deb` (Debian/Ubuntu, x64 and arm64), and `.exe` (Windows x64).
 Install them the way the upstream README describes. They are **unsigned**:
 macOS blocks the first launch until you right-click the app and choose Open (or
-run `xattr -d com.apple.quarantine "/Applications/NVIDIA Personal AI Router.app"`),
+run `xattr -dr com.apple.quarantine /Applications/PAIR.app`; the bundle is named `PAIR.app`),
 and Windows shows a SmartScreen prompt. A package from here never checks an
 update feed; upgrade by installing the next release over it. Settings, cluster
 identity, and pairings are kept.
