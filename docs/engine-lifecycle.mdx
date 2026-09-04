@@ -172,6 +172,30 @@ CUDA dependencies into it, which is several gigabytes. Uninstalling removes that
 environment; it does not remove downloaded weights, which live in the Hugging
 Face cache at `~/.cache/huggingface`.
 
+**A vLLM instance that spans several machines looks like one engine to PAIR.**
+vLLM itself can shard a model across the GPUs of two or more machines with its
+own tensor parallelism (`--tensor-parallel-size N --nnodes M`), for example
+across two DGX Spark systems joined by their direct high-speed link. PAIR
+neither combines GPUs nor splits models; it adopts the instance vLLM formed as a
+single engine on that instance's head node. Only the head node (`--node-rank 0`)
+opens the API port; every other node runs with `--headless` and holds its share
+of the weights without listening for requests. PAIR follows that shape:
+
+- Run PAIR on **every** machine in the vLLM group, so each reports hardware and
+  telemetry and takes part in the cluster. Pair them all with the rest of your
+  cluster the usual way.
+- Turn vLLM on only on the head node. It adopts the instance on port `8000` and
+  advertises the model. On a worker node there is nothing on port `8000` to
+  adopt, so vLLM shows as off there, which is correct rather than a fault. Do not
+  start a second vLLM on a worker; its GPU is already in use by the head's
+  instance.
+- Every request for that model routes to the head node. Because the group is one
+  instance, there is no second copy for the scheduler to balance against; run a
+  separate instance elsewhere if you want the same model on two owners.
+- Never restart a worker's vLLM on its own. Losing a rank stops the whole
+  instance, and the head node's API goes with it. Restart the group in the order
+  vLLM's own documentation gives for multi-node serving.
+
 ## Managing Engines on Other Machines
 
 After systems are paired, you can view another machine's engines from
