@@ -22,3 +22,6 @@ __pycache__/
 
 # Per-machine bookkeeping written by the Cursor agent hooks, not configuration.
 /.cursor/hooks/state/
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/
