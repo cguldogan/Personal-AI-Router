@@ -69,8 +69,22 @@ hand. Tabs: Engines (`i` install, `s` start, `x` stop), Cluster (`i` invite,
    any multicast-free network use **Add node** with the address.
 2. On the inviting machine: **Add node** (or Settings → Cluster) → pick the
    discovered node or type the address → invite. It shows a six-digit PIN.
-3. On the invited machine: accept the invitation and type the PIN (desktop
-   dialog, or TUI Cluster tab `a`).
+3. On the invited machine: accept the invitation and type the PIN. Desktop:
+   the invitation dialog. Headless box: either the TUI Cluster tab (`a`, PIN,
+   Enter) or, from any SSH shell while `nvpair-tui` runs, the scripted form:
+
+   ```bash
+   NVPAIR_PIN=123456 nvpair-tui accept            # exit 0 paired, 1 refused, 2 other
+   nvpair-tui accept --wait 2m                    # wait for the invite to arrive first
+   nvpair-tui pending | nvpair-tui members        # inspect
+   nvpair-tui invite <address> [--wait]           # invite from the box; prints the PIN
+   ```
+
+   These talk to the running TUI over its control socket
+   (`$XDG_RUNTIME_DIR/nvpair/tui.sock`, else `run/tui.sock` under the per-user
+   data dir). Two headless boxes pair each other with `invite` on one and
+   `accept` on the other. Docs: `docs/terminal-interface.mdx`, "Pair from a
+   Script or Over SSH".
 4. Verify under Settings → Cluster → **Connected nodes**, or on Overview.
 
 Trust is transitive: pairing A↔B and A↔C also lets B and C talk.
