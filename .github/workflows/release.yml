@@ -86,10 +86,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  script: 'build:electron:linux:x64',   arch: x64,   glob: 'desktop/release/**/NVPAIR-Setup-*.deb' }
-          - { os: ubuntu-24.04-arm, script: 'build:electron:linux:arm64', arch: arm64, glob: 'desktop/release/**/NVPAIR-Setup-*.deb' }
-          - { os: macos-latest,   script: 'build:electron:mac:arm64',   arch: arm64, glob: 'desktop/release/**/NVPAIR-Setup-*.dmg' }
-          - { os: windows-latest, script: 'build:electron:win:x64',     arch: x64,   glob: 'desktop/release/**/NVPAIR-Setup-*.exe' }
+          - { os: ubuntu-latest,  script: 'build:electron:linux:x64',   arch: x64,   pattern: 'NVPAIR-Setup-*.deb' }
+          - { os: ubuntu-24.04-arm, script: 'build:electron:linux:arm64', arch: arm64, pattern: 'NVPAIR-Setup-*.deb' }
+          - { os: macos-latest,   script: 'build:electron:mac:arm64',   arch: arm64, pattern: 'NVPAIR-Setup-*.dmg' }
+          - { os: windows-latest, script: 'build:electron:win:x64',     arch: x64,   pattern: 'NVPAIR-Setup-*.exe' }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -119,9 +119,10 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          PATTERN: ${{ matrix.pattern }}
         run: |
+          # macOS runners ship bash 3.2 (no globstar), so use find.
           set -euo pipefail
-          shopt -s globstar nullglob
-          files=( ${{ matrix.glob }} )
-          [ ${#files[@]} -gt 0 ] || { echo "no package produced"; exit 1; }
-          gh release upload "$TAG" "${files[@]}" --clobber
+          files=$(find desktop/release -type f -name "$PATTERN")
+          [ -n "$files" ] || { echo "no package produced"; exit 1; }
+          echo "$files" | while IFS= read -r f; do gh release upload "$TAG" "$f" --clobber; done
