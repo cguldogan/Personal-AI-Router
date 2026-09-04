@@ -66,11 +66,28 @@ show no engine.
 [Releases](../../releases) carries `NVPAIR-Setup-<version>-<arch>.dmg` (macOS,
 Apple Silicon), `.deb` (Debian/Ubuntu, x64 and arm64), and `.exe` (Windows x64).
 Install them the way the upstream README describes. They are **unsigned**:
-macOS blocks the first launch until you right-click the app and choose Open (or
-run `xattr -dr com.apple.quarantine /Applications/PAIR.app`; the bundle is named `PAIR.app`),
-and Windows shows a SmartScreen prompt. A package from here never checks an
-update feed; upgrade by installing the next release over it. Settings, cluster
-identity, and pairings are kept.
+macOS blocks the first launch and Windows shows a SmartScreen prompt.
+
+On macOS, drag `PAIR.app` to Applications, open it once to get the block, then
+either allow it under **System Settings → Privacy & Security → Open Anyway**,
+or strip the quarantine flag and open it normally:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/PAIR.app
+```
+
+If macOS says the app is **"damaged and can't be opened"**, the download is not
+actually corrupt (`hdiutil verify` on the `.dmg` passes). Packages older than
+v0.93.0-fork.3 shipped without a bundle-level signature, which macOS 15 and
+later report as damage. Repair such a copy in place instead of re-downloading:
+
+```bash
+codesign --force --deep --sign - /Applications/PAIR.app
+xattr -dr com.apple.quarantine /Applications/PAIR.app
+```
+
+A package from here never checks an update feed; upgrade by installing the next
+release over it. Settings, cluster identity, and pairings are kept.
 
 ## Desktop application from source
 
