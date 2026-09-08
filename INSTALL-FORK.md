@@ -6,16 +6,17 @@ SPDX-License-Identifier: Apache-2.0
 # Installing this fork
 
 This fork of [NVIDIA Personal AI Router](https://github.com/NVIDIA/Personal-AI-Router)
-adds three things that are proposed upstream but not yet merged:
+adds what upstream does not have yet:
 
-- **vLLM** as a third inference engine (upstream PR #9).
+- **vLLM** as a third inference engine (upstream PR #9), and **SGLang** as a
+  fourth alongside it.
 - **Nodes across an overlay network** such as a Tailscale tailnet, added by
   address or MagicDNS name and treated as full peers (upstream PR #10).
 - **Scripted pairing** for headless machines: `nvpair-tui accept --pin …`
   (upstream PR #11).
 
-Everything below is for the branch `feat/vllm-tailscale`, which carries all
-three. Builds from this fork are **unsigned**; they are not NVIDIA releases.
+Everything below is for the branch `fork/main`, which carries them
+all. Builds from this fork are **unsigned**; they are not NVIDIA releases.
 
 ## Pick the path for each machine
 
@@ -35,7 +36,7 @@ this fork's latest release, installs to `~/pair`, and starts PAIR's terminal
 interface in a tmux session named `pair`. No Go or Node required.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/feat/vllm-tailscale/scripts/install-headless.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/fork/main/scripts/install-headless.sh | bash
 ```
 
 Useful variants:
@@ -57,9 +58,9 @@ tmux attach -t pair              # the terminal interface; detach with Ctrl-b d
 ```
 
 An engine already running on the box is adopted automatically: vLLM on port
-8000, Ollama on 11434, LM Studio on 1234. A vLLM that spans several machines
-(`--nnodes N`) is adopted on its head node only; the headless ranks correctly
-show no engine.
+8000, SGLang on 30000, Ollama on 11434, LM Studio on 1234. A vLLM or SGLang that
+spans several machines (`--nnodes N`) is adopted on its head node only; the
+other ranks correctly show no engine.
 
 ## Desktop application from a release package
 
@@ -94,7 +95,7 @@ release over it. Settings, cluster identity, and pairings are kept.
 Needs Go 1.25+, Node 25.5+ (Node 23 works in practice), and `jq`.
 
 ```bash
-git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: feat/vllm-tailscale
+git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: fork/main
 cd Personal-AI-Router/desktop
 npm install
 npm start                        # builds the services, then opens the app
@@ -146,7 +147,9 @@ that holds it, over mutual TLS. **Endpoints** in the desktop app shows the same.
 - **Node shows but no models** — pair it first; a node serves its inventory only
   to paired peers.
 - **Node shows no engine** — nothing is listening on the engine's default port on
-  that machine, or it is a headless rank of a multi-node vLLM.
+  that machine, or it is a non-head rank of a multi-node vLLM or SGLang. SGLang
+  opens port 30000 only once the model has finished loading, so a node that is
+  still loading shows no SGLang until it is ready.
 
 More: [docs/remote-networks.mdx](docs/remote-networks.mdx),
 [docs/terminal-interface.mdx](docs/terminal-interface.mdx),

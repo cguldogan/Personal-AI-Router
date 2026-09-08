@@ -5,7 +5,7 @@
 # install-headless.sh — put PAIR's services on a Linux or macOS machine that has
 # no desktop, and run them under tmux with the terminal interface.
 #
-#   curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/feat/vllm-tailscale/scripts/install-headless.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/fork/main/scripts/install-headless.sh | bash
 #
 # What it does, in order:
 #   1. Detects OS and CPU architecture.
@@ -30,7 +30,7 @@
 set -euo pipefail
 
 REPO="${NVPAIR_REPO:-cguldogan/Personal-AI-Router}"
-BRANCH="${NVPAIR_BRANCH:-feat/vllm-tailscale}"
+BRANCH="${NVPAIR_BRANCH:-fork/main}"
 HOME_DIR="${NVPAIR_HOME:-$HOME/pair}"
 MIN_GO="1.25"
 
