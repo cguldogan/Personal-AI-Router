@@ -69,5 +69,39 @@ export default function EngineIcon({ type, size = 32 }: { type: EngineType; size
         )
     }
 
+    // SGLang's own logo is not redistributable here either, so its tile is drawn
+    // the same way vLLM's is. The colour is deliberately across the wheel from
+    // vLLM's blue: these two engines sit next to each other in the backend list
+    // and the tile is the only thing telling them apart at a glance, and
+    // orange-vs-blue survives the common colour-vision deficiencies that would
+    // collapse a violet-vs-blue pair. #c2410c carries white text at 5.2:1, past
+    // the 4.5:1 contrast floor.
+    if (type === 'sglang') {
+        return (
+            <div style={{ ...containerStyle, backgroundColor: '#c2410c' }}>
+                <svg
+                    viewBox="0 0 32 32"
+                    width="100%"
+                    height="100%"
+                    role="img"
+                    aria-label="SGLang"
+                    focusable="false"
+                >
+                    <text
+                        x="16"
+                        y="21"
+                        textAnchor="middle"
+                        fontFamily="system-ui, -apple-system, Segoe UI, sans-serif"
+                        fontSize="13"
+                        fontWeight="700"
+                        fill="#ffffff"
+                    >
+                        SG
+                    </text>
+                </svg>
+            </div>
+        )
+    }
+
     return null
 }

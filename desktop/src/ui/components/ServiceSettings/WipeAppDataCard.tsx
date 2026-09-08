@@ -18,8 +18,9 @@ function wipeMessage() {
             <Text kind="body/regular/sm">
                 Third-party model libraries and engine installations outside the app data folder
                 (for example <code>~/.ollama</code>, <code>~/.lmstudio</code>, a vLLM environment at{' '}
-                <code>~/.vllm</code>, and the Hugging Face cache at{' '}
-                <code>~/.cache/huggingface</code>) are <strong>not</strong> deleted.
+                <code>~/.vllm</code>, an SGLang environment at <code>~/.sglang</code>, and the
+                Hugging Face cache at <code>~/.cache/huggingface</code>) are <strong>not</strong>{' '}
+                deleted.
             </Text>
         </Stack>
     )

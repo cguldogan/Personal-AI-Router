@@ -516,11 +516,13 @@ function routeEngineManagerCommand(payload: WsInvokeRequest<'engine:command'>): 
             void toggleLocalEngine(engine, payload.engineType)
             break
         case 'setServedModel':
-            // vLLM serves one model per process, so the model is a start-time
-            // setting rather than a model operation. engine:set-model persists it
-            // as a manifest override — the same mechanism engine:set-port uses —
-            // and restarts a running engine onto it. Local only: the backend
-            // exposes no remote served-model control.
+            // vLLM and SGLang serve one model per process, so the model is a
+            // start-time setting rather than a model operation. engine:set-model
+            // persists it as a manifest override — the same mechanism
+            // engine:set-port uses — and restarts a running engine onto it. It
+            // is engine-agnostic: the engine id travels with the call, so no
+            // branch here needs to know which engine declared a served model.
+            // Local only: the backend exposes no remote served-model control.
             supervisor.sendProcess(
                 'broker',
                 'engine:set-model',

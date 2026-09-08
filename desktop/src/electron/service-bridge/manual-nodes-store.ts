@@ -47,7 +47,8 @@ function portsValue(value: JsonValue | undefined): ManualServicePorts | undefine
         cluster: portValue(obj.cluster),
         ollama: portValue(obj.ollama),
         lmstudio: portValue(obj.lmstudio),
-        vllm: portValue(obj.vllm)
+        vllm: portValue(obj.vllm),
+        sglang: portValue(obj.sglang)
     }
     return definedPorts(ports)
 }
@@ -64,13 +65,14 @@ function definedPorts(ports: ManualServicePorts): ManualServicePorts | undefined
     if (ports.ollama !== undefined) kept.ollama = ports.ollama
     if (ports.lmstudio !== undefined) kept.lmstudio = ports.lmstudio
     if (ports.vllm !== undefined) kept.vllm = ports.vllm
+    if (ports.sglang !== undefined) kept.sglang = ports.sglang
     return Object.keys(kept).length > 0 ? kept : undefined
 }
 
 /**
  * Projects the overrides onto the snake_case field names `node/add` reads
- * (`node_info`, `cluster`, `ollama`, `lmstudio`, `vllm`). The two spellings meet
- * here and nowhere else.
+ * (`node_info`, `cluster`, `ollama`, `lmstudio`, `vllm`, `sglang`). The two
+ * spellings meet here and nowhere else.
  */
 export function manualPortsToWire(ports: ManualServicePorts | undefined): JsonObject | undefined {
     if (!ports) return undefined
@@ -80,6 +82,7 @@ export function manualPortsToWire(ports: ManualServicePorts | undefined): JsonOb
     if (ports.ollama !== undefined) wire.ollama = ports.ollama
     if (ports.lmstudio !== undefined) wire.lmstudio = ports.lmstudio
     if (ports.vllm !== undefined) wire.vllm = ports.vllm
+    if (ports.sglang !== undefined) wire.sglang = ports.sglang
     return Object.keys(wire).length > 0 ? wire : undefined
 }
 

@@ -25,6 +25,7 @@ history.
 | Ollama routing             | Complete                        | Broker relay and backend scheduler drive proxy routing                                                                                          |
 | LM Studio routing          | Complete                        | Parallel broker relay and scheduler path                                                                                                        |
 | vLLM routing               | Complete on Linux               | Shares the LM Studio relay, the OpenAI-compatible proxy, and the same scheduler path                                                            |
+| SGLang routing             | Complete on Linux               | Shares the LM Studio relay, the OpenAI-compatible proxy, and the same scheduler path                                                            |
 | Local engine lifecycle     | Complete                        | Install, start, stop, uninstall, update, and port configuration                                                                                 |
 | Remote engine lifecycle    | Partial                         | Remote install, start, stop, status, and model pull are supported                                                                               |
 | Engine models              | Partial                         | Core list, pull, load, unload, and supported delete actions are wired                                                                           |
@@ -104,8 +105,8 @@ Both text-engine proxies are broker-owned and cluster-aware:
 
 - `ollama-proxy` serves the Ollama-compatible surface;
 - `lmstudio-proxy` serves the OpenAI-compatible surface for every
-  OpenAI-compatible engine — LM Studio and vLLM share the one listener, and a
-  node record can advertise `lm` and `vl` at the same port.
+  OpenAI-compatible engine — LM Studio, vLLM and SGLang share the one listener,
+  and a node record can advertise `lm`, `vl` and `sg` at the same port.
 
 Routing precedence is manual selection, scheduler priority, then deterministic
 proxy ordering. Personal AI Router leaves proxies in automatic mode.
@@ -203,13 +204,16 @@ Personal AI Router uses:
 Ollama and LM Studio expose Load, Eject, and Delete in the model manager when
 the backend action exists. Keep-alive / expiry controls remain unsupported.
 
-vLLM has no model operations at all: it declares only `list_models`,
-`loaded_models`, and `chat`, because a vLLM process serves exactly one model
-chosen at launch and it neither downloads nor deletes weights on request. Its
-capability entry therefore sets `hasDeleteModel: false`, `hasEject: false`,
-`hasExpiry: false`, and `modelOpsWhenStopped: false`, and adds
+vLLM and SGLang have no model operations at all: each declares only
+`list_models`, `loaded_models`, and `chat`, because such a process serves exactly
+one model chosen at launch and it neither downloads nor deletes weights on
+request. Both capability entries therefore set `hasDeleteModel: false`,
+`hasEject: false`, `hasExpiry: false`, and `modelOpsWhenStopped: false`, and add
 `hasServedModel: true` — the model to serve is a *setting* (`engine:set-model`),
-not a model action, and changing it restarts the engine.
+not a model action, and changing it restarts the engine. That setting takes
+either a Hugging Face model id or the path of a local model directory: vLLM's
+`--model` and SGLang's `--model-path` both accept both, and `/v1/models` reports
+back whichever was given, verbatim.
 
 LM Studio's `delete_model` declares `restart_after`, so the engine manager
 restarts a running LM Studio once the files are removed — its `/v1/models` is

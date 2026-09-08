@@ -40,8 +40,8 @@ type BrokerNodeSource = ProxyNodeSource | 'broker'
  * Engines surfaced by the broker's proxy plane. Other engine-manager engines
  * are not currently routed across nodes.
  */
-export type ProxyEngine = Extract<EngineType, 'ollama' | 'lm-studio' | 'vllm'>
-export const PROXY_ENGINES: readonly ProxyEngine[] = ['ollama', 'lm-studio', 'vllm']
+export type ProxyEngine = Extract<EngineType, 'ollama' | 'lm-studio' | 'vllm' | 'sglang'>
+export const PROXY_ENGINES: readonly ProxyEngine[] = ['ollama', 'lm-studio', 'vllm', 'sglang']
 
 /**
  * The engines each proxy fronts. `lmstudio-proxy` is the OpenAI-compatible
@@ -51,7 +51,7 @@ export const PROXY_ENGINES: readonly ProxyEngine[] = ['ollama', 'lm-studio', 'vl
  */
 const PROXY_SOURCE_ENGINES: Record<ProxyNodeSource, readonly ProxyEngine[]> = {
     'ollama-proxy': ['ollama'],
-    'lmstudio-proxy': ['lm-studio', 'vllm']
+    'lmstudio-proxy': ['lm-studio', 'vllm', 'sglang']
 }
 
 /** The proxy that fronts an engine, and so the node source it reports under. */
@@ -174,10 +174,15 @@ function emptyPresence(): EnginePresence {
 }
 
 function emptyEngines(): Record<ProxyEngine, EnginePresence> {
-    return { ollama: emptyPresence(), 'lm-studio': emptyPresence(), vllm: emptyPresence() }
+    return {
+        ollama: emptyPresence(),
+        'lm-studio': emptyPresence(),
+        vllm: emptyPresence(),
+        sglang: emptyPresence()
+    }
 }
 
-/** Immutably set one engine's presence, preserving the other. */
+/** Immutably set one engine's presence, preserving the rest. */
 function setEngine(
     engines: Record<ProxyEngine, EnginePresence>,
     engine: ProxyEngine,
@@ -186,7 +191,8 @@ function setEngine(
     return {
         ollama: engine === 'ollama' ? presence : engines.ollama,
         'lm-studio': engine === 'lm-studio' ? presence : engines['lm-studio'],
-        vllm: engine === 'vllm' ? presence : engines.vllm
+        vllm: engine === 'vllm' ? presence : engines.vllm,
+        sglang: engine === 'sglang' ? presence : engines.sglang
     }
 }
 
@@ -401,7 +407,7 @@ export function parseWorkloadsInitial(value: JsonValue | undefined): Workload[] 
 
 /** True for an engine fronted by a broker-supervised reverse proxy. */
 export function isProxyEngine(engine: EngineType): engine is ProxyEngine {
-    return engine === 'ollama' || engine === 'lm-studio' || engine === 'vllm'
+    return engine === 'ollama' || engine === 'lm-studio' || engine === 'vllm' || engine === 'sglang'
 }
 
 const PENDING_OP_IDLE_TIMEOUT_MS = 90_000
@@ -726,9 +732,10 @@ function toEngineStatus(
  * A proxy that fronts one engine answers for itself — the source names it. The
  * OpenAI proxy fronts several, so a node it reports is not necessarily LM
  * Studio: it stamps every routed node with per-engine model attribution keyed by
- * engine-manager name, and that is what says whether the node runs LM Studio,
- * vLLM, or both. A payload with no attribution names no engine, so callers that
- * must clear presence use the proxy's whole engine set instead.
+ * engine-manager name, and that is what says which of LM Studio, vLLM and SGLang
+ * the node actually runs — any of them, or several at once. A payload with no
+ * attribution names no engine, so callers that must clear presence use the
+ * proxy's whole engine set instead.
  */
 function enginesOnProxyNode(source: ProxyNodeSource, params: JsonValue | undefined): ProxyEngine[] {
     const fronted = PROXY_SOURCE_ENGINES[source]
@@ -938,8 +945,14 @@ class ModularBridgeState {
     private logs: LogEntry[] = []
     // Per-engine bound proxy port reported by the broker. 0 = not reported yet;
     // we never fabricate a default — an unknown port surfaces as null, not a
-    // guess. `ollama` is the `ollama-proxy`, `lm-studio` is the `lmstudio-proxy`.
-    private proxyPorts: Record<ProxyEngine, number> = { ollama: 0, 'lm-studio': 0, vllm: 0 }
+    // guess. `ollama` is the `ollama-proxy`; `lm-studio`, `vllm` and `sglang`
+    // are all the one `lmstudio-proxy` and therefore always hold the same port.
+    private proxyPorts: Record<ProxyEngine, number> = {
+        ollama: 0,
+        'lm-studio': 0,
+        vllm: 0,
+        sglang: 0
+    }
     private selfId: string | null = null
     /**
      * Authoritative local-engine facts from `nvpair-engine-manager`, keyed by

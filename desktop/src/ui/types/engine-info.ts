@@ -97,7 +97,7 @@ export interface BackendInfo {
     installedVersion?: string
     /**
      * The model this engine is configured to serve, for an engine that runs one
-     * model per process (vLLM). Empty string when none is chosen.
+     * model per process (vLLM, SGLang). Empty string when none is chosen.
      */
     servedModel?: string
     /** Models on this backend with per-model status */
