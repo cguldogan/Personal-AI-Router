@@ -49,8 +49,8 @@ export interface IEngineApi {
     setModelExpiry(engineType: EngineType, nodeId: string, model: string, expiry: string): void
     /**
      * Choose the model an engine serves. For an engine that runs one model per
-     * process (vLLM), the choice is persisted and the engine restarts onto it;
-     * an empty model clears the choice. Local node only.
+     * process (vLLM, SGLang), the choice is persisted and the engine restarts
+     * onto it; an empty model clears the choice. Local node only.
      */
     setServedModel(engineType: EngineType, nodeId: string, model: string): void
     /** Search the model registry/hub for available models. */

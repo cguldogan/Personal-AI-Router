@@ -51,6 +51,15 @@ describe('manual node entries', () => {
         expect(entry.ports).toEqual({ nodeInfo: 24318, ollama: 21434 })
     })
 
+    it("round-trips the OpenAI-compatible engines' own ports", () => {
+        // vLLM (stock 8000) and SGLang (stock 30000) each run their own server
+        // behind the shared OpenAI-compatible proxy, so a node that moved either
+        // off its stock port has to say so in the entry that replays it.
+        addManualNodeEntry('gpu-box.tail1234.ts.net', { vllm: 8001, sglang: 30001 })
+        const [entry] = listManualNodeEntries()
+        expect(entry.ports).toEqual({ vllm: 8001, sglang: 30001 })
+    })
+
     it('drops ports that are not usable, and the object when none are', () => {
         addManualNodeEntry('a.example', { nodeInfo: 0, ollama: 70000, cluster: 14321 })
         expect(listManualNodeEntries()[0].ports).toEqual({ cluster: 14321 })
@@ -101,14 +110,16 @@ describe('manualPortsToWire', () => {
                 cluster: 24321,
                 ollama: 21434,
                 lmstudio: 2234,
-                vllm: 8001
+                vllm: 8001,
+                sglang: 30001
             })
         ).toEqual({
             node_info: 24318,
             cluster: 24321,
             ollama: 21434,
             lmstudio: 2234,
-            vllm: 8001
+            vllm: 8001,
+            sglang: 30001
         })
     })
 

@@ -59,9 +59,11 @@ describe('vLLM engine registration', () => {
         expect(caps.engineHub).toBeUndefined()
     })
 
-    it('is the only engine that declares a served model', () => {
+    it('shares the served-model capability with SGLang and nothing else', () => {
+        // The one-model-per-process engines, in EngineTypes order. Ollama and LM
+        // Studio host a library and must never grow this field.
         const declaring = EngineTypes.filter(type => EngineCapabilities[type].hasServedModel)
-        expect(declaring).toEqual(['vllm'])
+        expect(declaring).toEqual(['vllm', 'sglang'])
     })
 
     it('is offered in onboarding on Linux only, and never pre-selected', () => {
@@ -72,9 +74,11 @@ describe('vLLM engine registration', () => {
     })
 
     it('renders a Hugging Face repo id as a readable model name', () => {
-        // vLLM's model ids are Hugging Face repo ids, which the shared formatter
-        // already handles — the point of this case is that the engine falls into
-        // that path rather than an engine-specific one.
+        // vLLM's model ids are whatever `--model` was: a Hugging Face repo id
+        // here, which the shared formatter already handles — the point of this
+        // case is that the engine falls into that path rather than an
+        // engine-specific one. The local-directory shape it also accepts is
+        // covered in sglang-engine.test.ts, where that rule was added.
         expect(formatModelDisplayName('Qwen/Qwen3-8B', 'vllm')).toBe(
             formatModelDisplayName('Qwen/Qwen3-8B', 'lm-studio')
         )
