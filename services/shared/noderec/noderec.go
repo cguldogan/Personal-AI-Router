@@ -10,7 +10,7 @@
 // whose TXT map carries a schema version, the node's identity, its LAN address,
 // and one compact key per local service port, e.g.:
 //
-//	v=1;uuid=<hostUuid>;cluster-uuid=<clusterUuid>;ip=192.168.1.10;ni=14318;ol=11434;lm=1234;vl=8000;er=14319;wl=14320;cl=14321;em=14322
+//	v=1;uuid=<hostUuid>;cluster-uuid=<clusterUuid>;ip=192.168.1.10;ni=14318;ol=11434;lm=1234;vl=8000;sg=30000;er=14319;wl=14320;cl=14321;em=14322
 //
 // Design decisions this package encodes:
 //   - SRV port is a fixed, NON-authoritative constant; consumers ignore it and
@@ -91,7 +91,14 @@ const (
 	// OpenAI-compatible proxy that fronts LM Studio. A node may advertise lm and
 	// vl at once (both point at that one proxy port); which engine owns a given
 	// model comes from the engine-manager model attribution, not from the key.
-	ServiceVLLM     ServiceKey = "vl"
+	ServiceVLLM ServiceKey = "vl"
+	// ServiceSGLang is a node's SGLang engine, reached through the same
+	// OpenAI-compatible proxy that fronts LM Studio and vLLM. Like lm and vl, its
+	// advertised value is that proxy's listen port and never the engine's own, so
+	// a node running all three still projects to a single routing target; which
+	// engine owns a given model comes from the engine-manager model attribution,
+	// not from the key.
+	ServiceSGLang   ServiceKey = "sg"
 	ServiceErrors   ServiceKey = "er"
 	ServiceWorkload ServiceKey = "wl"
 	ServiceCluster  ServiceKey = "cl"
@@ -110,8 +117,8 @@ const (
 // serviceKeyOrder is the deterministic emit order for service ports in TXT.
 var serviceKeyOrder = []ServiceKey{
 	ServiceNodeInfo, ServiceOllama, ServiceLMStudio, ServiceVLLM,
-	ServiceErrors, ServiceWorkload, ServiceCluster, ServiceEngineManager,
-	ServiceEngineControl,
+	ServiceSGLang, ServiceErrors, ServiceWorkload, ServiceCluster,
+	ServiceEngineManager, ServiceEngineControl,
 }
 
 // Transport is the connection policy for a service, derived (not advertised).

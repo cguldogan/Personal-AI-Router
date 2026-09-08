@@ -149,19 +149,21 @@ func TestVLLMNeverAdvertisesItsOwnProxy(t *testing.T) {
 	}
 }
 
-// TestOpenAIProxyServesBothEngines proves both OpenAI engines resolve to the one
-// proxy process, which is what lets a node advertise lm and vl at the same port.
-func TestOpenAIProxyServesBothEngines(t *testing.T) {
+// TestOpenAIProxyServesEveryOpenAIEngine proves every OpenAI engine resolves to
+// the one proxy process, which is what lets a node advertise lm, vl and sg at
+// the same port.
+func TestOpenAIProxyServesEveryOpenAIEngine(t *testing.T) {
 	b, _ := openAIProxyFixture(t, 1234)
-	lm := b.proxyForEngine("lmstudio")
-	vl := b.proxyForEngine("vllm")
-	if lm == nil || vl == nil {
-		t.Fatalf("proxyForEngine: lmstudio=%v vllm=%v", lm, vl)
+	openai := b.proxyForEngine("lmstudio")
+	if openai == nil {
+		t.Fatal("proxyForEngine(lmstudio) = nil")
 	}
-	if lm != vl {
-		t.Error("both OpenAI engines must be fronted by the same proxy process")
+	for _, engine := range []string{"vllm", "sglang"} {
+		if got := b.proxyForEngine(engine); got != openai {
+			t.Errorf("proxyForEngine(%s) = %v, want the same OpenAI proxy process", engine, got)
+		}
 	}
-	if b.proxyForEngine("ollama") == vl {
+	if b.proxyForEngine("ollama") == openai {
 		t.Error("Ollama must keep its own proxy")
 	}
 }

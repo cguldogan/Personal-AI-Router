@@ -39,6 +39,7 @@ type openaiEngine struct {
 var openaiEngines = []openaiEngine{
 	{Service: noderec.ServiceLMStudio, Name: "lmstudio"},
 	{Service: noderec.ServiceVLLM, Name: "vllm"},
+	{Service: noderec.ServiceSGLang, Name: "sglang"},
 }
 
 // subscribedServices is the discovery:subscribe service list: every engine key
