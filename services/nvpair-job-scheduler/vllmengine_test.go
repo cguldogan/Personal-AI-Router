@@ -8,12 +8,13 @@ import (
 	"testing"
 )
 
-// TestSchedulerEnginesCoversVLLM proves vLLM gets its own priority contract.
-// A proxy only applies the snapshot published for the engine it is routing, so
-// an engine missing from this list would route with no scheduler ordering at
-// all and every request would fall back to the stable-ID pass.
-func TestSchedulerEnginesCoversVLLM(t *testing.T) {
-	for _, want := range []string{"ollama", "lmstudio", "vllm"} {
+// TestSchedulerEnginesCoversEveryEngine proves each engine gets its own
+// priority contract. A proxy only applies the snapshot published for the engine
+// it is routing, so an engine missing from this list would route with no
+// scheduler ordering at all and every request would fall back to the stable-ID
+// pass.
+func TestSchedulerEnginesCoversEveryEngine(t *testing.T) {
+	for _, want := range []string{"ollama", "lmstudio", "vllm", "sglang"} {
 		if !slices.Contains(schedulerEngines, want) {
 			t.Errorf("schedulerEngines is missing %q: %v", want, schedulerEngines)
 		}

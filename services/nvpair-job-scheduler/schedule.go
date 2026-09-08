@@ -15,7 +15,7 @@ import (
 // schedulerEngines is the fixed set of engine-specific output contracts. They
 // all receive the same node-wide ranking because their work shares node
 // resources — a node's GPU is one queue however many engines front it.
-var schedulerEngines = []string{"ollama", "lmstudio", "vllm"}
+var schedulerEngines = []string{"ollama", "lmstudio", "vllm", "sglang"}
 
 // NodeRank is retained as the scheduler's public status type while the wire
 // definition is shared with the broker and proxies.

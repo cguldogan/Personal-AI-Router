@@ -713,8 +713,8 @@ type candidate struct {
 	id  string
 	url *url.URL
 	// routeKey keys the reachability chooser. It equals id for a relay peer and
-	// is engine-qualified for a manual node, so two manual entries for one host's
-	// two engines never share a confirmed address. See Node.routeKey.
+	// is engine-qualified for a manual node, so the manual entries for one host's
+	// several engines never share a confirmed address. See Node.routeKey.
 	routeKey string
 	// engine is the OpenAI engine on that node this request is routed to. It is
 	// what the emitted workload is tagged with, so a dual-engine node's work is
@@ -1974,8 +1974,8 @@ func (p *Proxy) handleMessage(msg *Message) {
 			return
 		}
 		// engine names which OpenAI engine on that host this address serves.
-		// LM Studio and vLLM listen on different ports, so a node running both is
-		// added once per engine and the entries must not collide.
+		// LM Studio, vLLM and SGLang listen on different ports, so a node running
+		// more than one is added once per engine and the entries must not collide.
 		if !isOpenAIEngine(node.Engine) {
 			p.codec.RespondError(msg.ID, -32602, "engine must be one of "+strings.Join(engineNames(), ", "))
 			return
