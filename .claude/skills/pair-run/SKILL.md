@@ -74,8 +74,9 @@ curl -s http://127.0.0.1:1234/v1/chat/completions -H 'Content-Type: application/
 Which node served it is in the log: grep `"scheduledOn"` on the last workload line.
 
 Add a remote node: **Add node** in the toolbar, type a Tailscale address or
-MagicDNS name. A bare vLLM host is routable within ~10 s without pairing; a
-PAIR peer additionally needs the invite/PIN step (see the `pair-setup` skill).
+MagicDNS name. A bare vLLM or SGLang host is routable within ~10 s without
+pairing; a PAIR peer additionally needs the invite/PIN step (see the
+`pair-setup` skill).
 
 Talk to the broker without the app (from `services/build/bin` after `./build.sh`):
 
@@ -157,5 +158,5 @@ workers down with it. Stale `nvpair-*` processes after a crash:
   `~/Library/Application Support/Nvidia Corporation/Personal AI Router`.
 - After running Go tests, delete `lmstudio-proxy-port.json` in that directory or
   the OpenAI proxy comes up on 1240 instead of 1234.
-- vLLM shows an Install button on macOS but the manifest is Linux-only; the
-  install is expected to refuse.
+- vLLM and SGLang show an Install button on macOS but both manifests are
+  Linux-only; the install is expected to refuse.

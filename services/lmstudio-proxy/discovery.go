@@ -44,15 +44,16 @@ type Node struct {
 	Models []string `json:"models,omitempty"`
 	// ModelsByEngine attributes each model to the engine on this node that serves
 	// it, so a request can be tagged with the engine that will actually run it and
-	// so a node running both LM Studio and vLLM is not conflated into one
-	// inventory. Keyed by engine-manager engine name ("lmstudio", "vllm").
+	// so a node running LM Studio, vLLM and SGLang is not conflated into one
+	// inventory. Keyed by engine-manager engine name ("lmstudio", "vllm",
+	// "sglang").
 	ModelsByEngine map[string][]string `json:"modelsByEngine,omitempty"`
 	// Engine names the single OpenAI engine a manual node was added for. A relay
 	// peer leaves it empty: one peer entry covers every engine that peer runs,
 	// because they all answer on that peer's one proxy port. A manual node is the
-	// exception — the user supplies an engine's own address, and LM Studio and
-	// vLLM sit on different ports — so one manual node per engine is added, each
-	// carrying the engine it represents.
+	// exception — the user supplies an engine's own address, and LM Studio, vLLM
+	// and SGLang sit on different ports — so one manual node per engine is added,
+	// each carrying the engine it represents.
 	Engine string `json:"engine,omitempty"`
 	// IP is the single canonical LAN address a consumer should dial/display for
 	// this node, resolved via the shared netpick ranker: the node's
@@ -194,7 +195,7 @@ func engineModelsEqual(a, b map[string][]string) bool {
 }
 
 // AddManual upserts a manual node for one engine. The same node ID added for
-// two engines is two entries, because each names that engine's own port.
+// several engines is one entry each, because each names that engine's own port.
 func (d *Discovery) AddManual(node Node) (added bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()

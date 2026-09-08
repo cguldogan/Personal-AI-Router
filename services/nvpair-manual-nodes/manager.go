@@ -54,6 +54,7 @@ const (
 	defaultOllamaPort   = 11434
 	defaultLMStudioPort = 1234
 	defaultVLLMPort     = 8000
+	defaultSGLangPort   = 30000
 	defaultNodeInfoPort = 14318
 	defaultClusterPort  = 14321
 )
@@ -141,14 +142,15 @@ type ManualEntry struct {
 // names follow the service names manual-nodes already uses rather than the
 // compact mDNS TXT keys, because this is what an operator types.
 //
-// VLLM is carried and persisted but not probed here yet; it is in the set so an
-// entry written today keeps its meaning when the vLLM leg lands.
+// Every field here has a probe leg behind it (see engineLegs and
+// probeNodeInfo), so an override changes where this process actually looks.
 type ManualPorts struct {
 	NodeInfo int `json:"node_info,omitempty"`
 	Cluster  int `json:"cluster,omitempty"`
 	Ollama   int `json:"ollama,omitempty"`
 	LMStudio int `json:"lmstudio,omitempty"`
 	VLLM     int `json:"vllm,omitempty"`
+	SGLang   int `json:"sglang,omitempty"`
 }
 
 // resolved returns this entry's ports with every unset field filled from the
@@ -164,6 +166,7 @@ func (e ManualEntry) resolved() ManualPorts {
 	p.Ollama = portOr(p.Ollama, defaultOllamaPort)
 	p.LMStudio = portOr(p.LMStudio, defaultLMStudioPort)
 	p.VLLM = portOr(p.VLLM, defaultVLLMPort)
+	p.SGLang = portOr(p.SGLang, defaultSGLangPort)
 	return p
 }
 
@@ -227,9 +230,15 @@ type ManualNodeStatus struct {
 	// vLLM is probed on its default OpenAI-API port alongside LM Studio. Both
 	// speak the same API, so /v1/models alone cannot tell them apart; the probe
 	// additionally requires vLLM's own /version, which LM Studio does not serve.
-	VLLMUp         bool        `json:"vllm_up"`
-	VLLMPort       int         `json:"vllm_port"`
-	VLLMModels     []string    `json:"vllm_models,omitempty"`
+	VLLMUp     bool     `json:"vllm_up"`
+	VLLMPort   int      `json:"vllm_port"`
+	VLLMModels []string `json:"vllm_models,omitempty"`
+	// SGLang is probed on its own default port alongside the other two OpenAI
+	// servers. It is told apart by GET /get_model_info, a route neither LM Studio
+	// nor vLLM serves; see probeSGLang.
+	SGLangUp       bool        `json:"sglang_up"`
+	SGLangPort     int         `json:"sglang_port"`
+	SGLangModels   []string    `json:"sglang_models,omitempty"`
 	NodeInfoUp     bool        `json:"node_info_up"`
 	NodeInfoPort   int         `json:"node_info_port"`
 	TLSEnabled     bool        `json:"tls_enabled,omitempty"`
@@ -405,12 +414,12 @@ func (m *Manager) probeNode(entry ManualEntry) {
 	// node-info is asked FIRST, because its answer decides what kind of node this
 	// is and therefore what else may be probed at all.
 	//
-	// A PAIR node's 11434, 1234 and 8000 are its proxy facades, not its engines:
-	// the engines bind loopback and the facades refuse plaintext from anything
-	// but loopback. Probing them would 403 every cycle and report a healthy peer
-	// as having no engines, so a node that identifies itself as PAIR is never
-	// probed there. Its engines are read from its engine manager instead, and it
-	// is routed to through those same facades over cluster mTLS.
+	// A PAIR node's 11434, 1234, 8000 and 30000 are its proxy facades, not its
+	// engines: the engines bind loopback and the facades refuse plaintext from
+	// anything but loopback. Probing them would 403 every cycle and report a
+	// healthy peer as having no engines, so a node that identifies itself as PAIR
+	// is never probed there. Its engines are read from its engine manager instead,
+	// and it is routed to through those same facades over cluster mTLS.
 	nodeInfoUp, info := m.probeNodeInfo(entry, ports)
 
 	// What this node was on the previous cycle, read before anything else runs:
@@ -441,6 +450,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		OllamaPort:     ports.Ollama,
 		LMStudioPort:   ports.LMStudio,
 		VLLMPort:       ports.VLLM,
+		SGLangPort:     ports.SGLang,
 		NodeInfoUp:     nodeInfoUp,
 		NodeInfoPort:   m.nodeInfoProbePort(entry, ports),
 		TLSEnabled:     entry.TLSPort > 0,
@@ -484,7 +494,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		}
 	}
 
-	reachable := newStatus.OllamaUp || newStatus.LMStudioUp || newStatus.VLLMUp || newStatus.NodeInfoUp
+	reachable := newStatus.OllamaUp || newStatus.LMStudioUp || newStatus.VLLMUp || newStatus.SGLangUp || newStatus.NodeInfoUp
 
 	m.mu.Lock()
 	tn, exists := m.nodes[id]
@@ -514,6 +524,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 	changed := prev.OllamaUp != newStatus.OllamaUp ||
 		prev.LMStudioUp != newStatus.LMStudioUp ||
 		prev.VLLMUp != newStatus.VLLMUp ||
+		prev.SGLangUp != newStatus.SGLangUp ||
 		prev.NodeInfoUp != newStatus.NodeInfoUp ||
 		prev.HostUUID != newStatus.HostUUID ||
 		prev.PairNode != newStatus.PairNode ||
@@ -525,6 +536,7 @@ func (m *Manager) probeNode(entry ManualEntry) {
 		!sliceEqual(prev.OllamaModels, newStatus.OllamaModels) ||
 		!sliceEqual(prev.LMStudioModels, newStatus.LMStudioModels) ||
 		!sliceEqual(prev.VLLMModels, newStatus.VLLMModels) ||
+		!sliceEqual(prev.SGLangModels, newStatus.SGLangModels) ||
 		!gpusEqual(prev.GPUs, newStatus.GPUs) ||
 		!cpuEqual(prev.CPU, newStatus.CPU) ||
 		!memoryEqual(prev.Memory, newStatus.Memory) ||
@@ -623,6 +635,14 @@ func (m *Manager) engineLegs(ports ManualPorts) []engineLeg {
 				s.VLLMUp, s.VLLMModels = up, models
 			},
 		},
+		{
+			name:  "sglang",
+			port:  ports.SGLang,
+			probe: m.probeSGLang,
+			apply: func(s *ManualNodeStatus, up bool, models []string) {
+				s.SGLangUp, s.SGLangModels = up, models
+			},
+		},
 	}
 }
 
@@ -674,9 +694,24 @@ func (m *Manager) probeLMStudio(addr string, port int) (bool, []string) {
 // reported as the other on a host running both. vLLM additionally serves
 // GET /version returning {"version": "..."} and LM Studio does not, so that
 // route is the disambiguator: both must answer before the node is reported as
-// running vLLM. Returns whether it is up and the model ids it serves.
+// running vLLM.
+//
+// It then refuses a server that also answers GET /get_model_info. That route is
+// SGLang's own, so a server answering it is SGLang whatever else it serves, and
+// vLLM must not claim it — a defensive guard rather than an observed collision,
+// since SGLang answers no /version and so never reaches this check. An error or
+// timeout on /get_model_info means "not SGLang, carry on as vLLM": treating an
+// unanswered probe as a rejection would flap a slow-but-healthy vLLM to down
+// every cycle.
+//
+// Returns whether it is up and the model ids it serves.
 func (m *Manager) probeVLLM(addr string, port int) (bool, []string) {
 	if !m.probeVLLMVersion(addr, port) {
+		return false, nil
+	}
+	if m.probeSGLangModelInfo(addr, port) {
+		slog.Debug("manual probe vllm rejected: the server answers SGLang's /get_model_info",
+			"addr", addr, "port", port)
 		return false, nil
 	}
 	url := "http://" + net.JoinHostPort(addr, strconv.Itoa(port)) + "/v1/models"
@@ -737,6 +772,83 @@ func (m *Manager) probeVLLMVersion(addr string, port int) bool {
 		return false
 	}
 	return body.Version != ""
+}
+
+// probeSGLang checks SGLang's OpenAI-compatible server on addr:port. LM Studio
+// and vLLM serve the same /v1/models, so a model list alone cannot tell any of
+// the three apart; SGLang additionally serves GET /get_model_info, which neither
+// of the others does, so that route is the disambiguator: both must answer
+// before the node is reported as running SGLang.
+//
+// The model ids come from /v1/models as for the other OpenAI engines. SGLang's
+// id is its --served-model-name, which defaults to --model-path verbatim, so it
+// may be a Hugging Face id or a bare local directory. Nothing here interprets
+// the shape. Returns whether it is up and the model ids it serves.
+func (m *Manager) probeSGLang(addr string, port int) (bool, []string) {
+	if !m.probeSGLangModelInfo(addr, port) {
+		return false, nil
+	}
+	url := "http://" + net.JoinHostPort(addr, strconv.Itoa(port)) + "/v1/models"
+	start := time.Now()
+	resp, err := m.client.Get(url)
+	if err != nil {
+		slog.Debug("manual probe sglang failed",
+			"addr", addr, "port", port, "duration_ms", time.Since(start).Milliseconds(), "err", err)
+		return false, nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		slog.Debug("manual probe sglang non-OK",
+			"addr", addr, "port", port, "status", resp.StatusCode,
+			"duration_ms", time.Since(start).Milliseconds())
+		return false, nil
+	}
+	var result struct {
+		Data *[]struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.Data == nil {
+		// /get_model_info identified it as SGLang, but its model list is not the
+		// OpenAI shape. Nothing can be routed to it, so it is not usable here.
+		slog.Debug("manual probe sglang model list unusable", "addr", addr, "port", port, "err", err)
+		return false, nil
+	}
+	models := make([]string, 0, len(*result.Data))
+	for _, d := range *result.Data {
+		if d.ID != "" {
+			models = append(models, d.ID)
+		}
+	}
+	slog.Debug("manual probe sglang up",
+		"addr", addr, "port", port, "models", len(models),
+		"duration_ms", time.Since(start).Milliseconds())
+	return true, models
+}
+
+// probeSGLangModelInfo reports whether addr:port answers SGLang's
+// GET /get_model_info with a JSON body carrying a model_path. It is both
+// SGLang's identity check and, inverted, vLLM's guard against claiming an
+// SGLang, so any failure — unreachable, non-200, unparseable, empty
+// model_path — answers "not SGLang" rather than propagating an error.
+func (m *Manager) probeSGLangModelInfo(addr string, port int) bool {
+	url := "http://" + net.JoinHostPort(addr, strconv.Itoa(port)) + "/get_model_info"
+	resp, err := m.client.Get(url)
+	if err != nil {
+		slog.Debug("manual probe sglang model-info failed", "addr", addr, "port", port, "err", err)
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+	var body struct {
+		ModelPath string `json:"model_path"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return false
+	}
+	return body.ModelPath != ""
 }
 
 func (m *Manager) probeOllama(addr string, port int) (bool, []string) {
@@ -908,6 +1020,7 @@ func (m *Manager) addNode(entry ManualEntry) ManualNodeStatus {
 		OllamaPort:   ports.Ollama,
 		LMStudioPort: ports.LMStudio,
 		VLLMPort:     ports.VLLM,
+		SGLangPort:   ports.SGLang,
 		NodeInfoPort: m.nodeInfoProbePort(entry, ports),
 		TLSEnabled:   entry.TLSPort > 0,
 		MTLSRequired: entry.TLSPort > 0 && entry.MTLS,

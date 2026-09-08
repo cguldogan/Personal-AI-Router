@@ -300,6 +300,7 @@ function proxyEngineFromManagerId(id: string): ProxyEngine | null {
     if (id === 'ollama') return 'ollama'
     if (id === 'lmstudio') return 'lm-studio'
     if (id === 'vllm') return 'vllm'
+    if (id === 'sglang') return 'sglang'
     return null
 }
 

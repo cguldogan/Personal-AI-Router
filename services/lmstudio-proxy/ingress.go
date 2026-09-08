@@ -29,9 +29,9 @@ const engineIdentityProbeHeader = "X-NVPAIR-Engine-Identity-Probe"
 // engine, never re-routed to a peer, so the ingress path is strictly terminal
 // and cannot recurse or amplify.
 //
-// Engine names which OpenAI engine this is. One node may run LM Studio and vLLM
-// at once, so the backends are held per engine and each is set and cleared
-// independently — marking one unhealthy must not disturb the other.
+// Engine names which OpenAI engine this is. One node may run LM Studio, vLLM
+// and SGLang at once, so the backends are held per engine and each is set and
+// cleared independently — marking one unhealthy must not disturb the others.
 type localBackend struct {
 	Engine  string `json:"engine"`
 	Host    string `json:"host"`

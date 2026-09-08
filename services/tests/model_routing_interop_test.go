@@ -68,8 +68,8 @@ func TestStrictModelRoutingAcrossProcesses(t *testing.T) {
 		// OpenAI proxy fronts more than one, so its manual overlay is keyed by
 		// (engine, node) and the field is required.
 		engine string
-		path      string
-		port      int
+		path   string
+		port   int
 	}
 	cases := []proxyCase{
 		{name: "ollama", rpcPrefix: "proxy", engine: "ollama", path: "/api/chat", port: ollamaPort},
