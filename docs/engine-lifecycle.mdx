@@ -230,10 +230,13 @@ request, or start SGLang with `--served-model-name` set to something friendlier.
 
 **The port opens only once the model is loaded.** SGLang binds `30000` after
 loading finishes rather than before, and PAIR checks readiness and liveness with
-`GET /health`. A node that is still loading therefore shows no SGLang at all
-until it is ready, which is expected rather than a fault. A first start can take
-many minutes, and PAIR allows up to thirty minutes for it; later starts of the
-same model are much faster.
+`GET /get_model_info`, SGLang's own metadata route. It deliberately does not use
+`GET /health`: on current SGLang builds that route runs a real forward pass and
+takes about a second, and PAIR probes an engine often enough that this would
+cost real serving time. A node that is still loading therefore shows no SGLang
+at all until it is ready, which is expected rather than a fault. A first start
+can take many minutes, and PAIR allows up to thirty minutes for it; later starts
+of the same model are much faster.
 
 **There are no model operations.** As with vLLM, SGLang has no download, load,
 unload, or delete surface. The engine fetches what it needs for the model you
