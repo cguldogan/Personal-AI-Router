@@ -1515,8 +1515,8 @@ func (b *Broker) proxyForEngine(engine string) *proxyProcess {
 	switch engine {
 	case "ollama":
 		return b.getProxy()
-	case "lmstudio", "vllm":
-		// Both OpenAI-compatible engines are fronted by the one OpenAI proxy.
+	case "lmstudio", "vllm", "sglang":
+		// Every OpenAI-compatible engine is fronted by the one OpenAI proxy.
 		return b.getOpenAIProxy()
 	default:
 		return nil
@@ -1829,12 +1829,13 @@ func (b *Broker) Serve(ctx context.Context) error {
 		b.finishLMStudioProxyTerminal()
 	}
 
-	// Restore engines and begin both advertising loops only after both proxy
+	// Restore engines and begin every advertising loop only after both proxy
 	// startup attempts have established either readiness or a terminal outcome.
 	// This prevents a restored engine from taking a persisted proxy port before
 	// the broker can resolve ownership.
 	go b.runEngineAvailabilityAfterPortGates(ctx,
-		b.runAutoAdvertise, b.runAutoAdvertiseLMStudio, b.runAutoAdvertiseVLLM)
+		b.runAutoAdvertise, b.runAutoAdvertiseLMStudio, b.runAutoAdvertiseVLLM,
+		b.runAutoAdvertiseSGLang)
 
 	// nvpair-workload-manager is another auxiliary worker: it relays local
 	// workload lifecycle events to peer nodes and surfaces peer events

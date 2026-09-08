@@ -265,9 +265,9 @@ func TestValidateManualAddress(t *testing.T) {
 
 func TestManualPorts_OverrideEveryServiceAndDefaultTheRest(t *testing.T) {
 	full := ManualEntry{Ports: &ManualPorts{
-		NodeInfo: 24318, Cluster: 24321, Ollama: 21434, LMStudio: 2234, VLLM: 8001,
+		NodeInfo: 24318, Cluster: 24321, Ollama: 21434, LMStudio: 2234, VLLM: 8001, SGLang: 30001,
 	}}.resolved()
-	want := ManualPorts{NodeInfo: 24318, Cluster: 24321, Ollama: 21434, LMStudio: 2234, VLLM: 8001}
+	want := ManualPorts{NodeInfo: 24318, Cluster: 24321, Ollama: 21434, LMStudio: 2234, VLLM: 8001, SGLang: 30001}
 	if full != want {
 		t.Fatalf("resolved = %+v, want %+v", full, want)
 	}
@@ -277,7 +277,8 @@ func TestManualPorts_OverrideEveryServiceAndDefaultTheRest(t *testing.T) {
 		t.Errorf("ollama = %d, want the override", partial.Ollama)
 	}
 	if partial.NodeInfo != defaultNodeInfoPort || partial.LMStudio != defaultLMStudioPort ||
-		partial.Cluster != defaultClusterPort || partial.VLLM != defaultVLLMPort {
+		partial.Cluster != defaultClusterPort || partial.VLLM != defaultVLLMPort ||
+		partial.SGLang != defaultSGLangPort {
 		t.Errorf("resolved = %+v, want every unset field defaulted", partial)
 	}
 
