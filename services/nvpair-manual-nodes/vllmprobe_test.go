@@ -101,10 +101,16 @@ func TestVLLMCountsAsReachable(t *testing.T) {
 	}{
 		{name: "vllm only", status: ManualNodeStatus{VLLMUp: true}, want: true},
 		{name: "lmstudio only", status: ManualNodeStatus{LMStudioUp: true}, want: true},
+		{name: "sglang only", status: ManualNodeStatus{SGLangUp: true}, want: true},
 		{name: "nothing", status: ManualNodeStatus{}, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := tc.status.OllamaUp || tc.status.LMStudioUp || tc.status.VLLMUp || tc.status.NodeInfoUp
+			// Mirrors probeNode's reachability expression. It has to be kept in
+			// step by hand; TestSGLangCountsAsReachable asserts against the
+			// manager's own decision, which is what catches a leg that was added
+			// here but never wired into probeNode.
+			got := tc.status.OllamaUp || tc.status.LMStudioUp || tc.status.VLLMUp ||
+				tc.status.SGLangUp || tc.status.NodeInfoUp
 			if got != tc.want {
 				t.Errorf("reachable = %v, want %v", got, tc.want)
 			}

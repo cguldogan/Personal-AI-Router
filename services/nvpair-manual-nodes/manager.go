@@ -414,12 +414,12 @@ func (m *Manager) probeNode(entry ManualEntry) {
 	// node-info is asked FIRST, because its answer decides what kind of node this
 	// is and therefore what else may be probed at all.
 	//
-	// A PAIR node's 11434, 1234, 8000 and 30000 are its proxy facades, not its engines:
-	// the engines bind loopback and the facades refuse plaintext from anything
-	// but loopback. Probing them would 403 every cycle and report a healthy peer
-	// as having no engines, so a node that identifies itself as PAIR is never
-	// probed there. Its engines are read from its engine manager instead, and it
-	// is routed to through those same facades over cluster mTLS.
+	// A PAIR node's 11434, 1234, 8000 and 30000 are its proxy facades, not its
+	// engines: the engines bind loopback and the facades refuse plaintext from
+	// anything but loopback. Probing them would 403 every cycle and report a
+	// healthy peer as having no engines, so a node that identifies itself as PAIR
+	// is never probed there. Its engines are read from its engine manager instead,
+	// and it is routed to through those same facades over cluster mTLS.
 	nodeInfoUp, info := m.probeNodeInfo(entry, ports)
 
 	// What this node was on the previous cycle, read before anything else runs:

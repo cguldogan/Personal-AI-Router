@@ -88,16 +88,14 @@ const (
 	ServiceOllama   ServiceKey = "ol"
 	ServiceLMStudio ServiceKey = "lm"
 	// ServiceVLLM is a node's vLLM engine, reached through the same
-	// OpenAI-compatible proxy that fronts LM Studio. A node may advertise lm and
-	// vl at once (both point at that one proxy port); which engine owns a given
+	// OpenAI-compatible proxy that fronts LM Studio. A node may advertise lm, vl
+	// and sg at once (all point at that one proxy port); which engine owns a given
 	// model comes from the engine-manager model attribution, not from the key.
 	ServiceVLLM ServiceKey = "vl"
-	// ServiceSGLang is a node's SGLang engine, reached through the same
-	// OpenAI-compatible proxy that fronts LM Studio and vLLM. Like lm and vl, its
-	// advertised value is that proxy's listen port and never the engine's own, so
-	// a node running all three still projects to a single routing target; which
-	// engine owns a given model comes from the engine-manager model attribution,
-	// not from the key.
+	// ServiceSGLang is a node's SGLang engine, reached through that same proxy.
+	// Like lm and vl, its advertised value is the proxy's listen port and never
+	// the engine's own, so a node running all three still projects to a single
+	// routing target.
 	ServiceSGLang   ServiceKey = "sg"
 	ServiceErrors   ServiceKey = "er"
 	ServiceWorkload ServiceKey = "wl"
