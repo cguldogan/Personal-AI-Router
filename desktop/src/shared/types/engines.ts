@@ -42,8 +42,9 @@ export interface EngineStatusData {
     installedVersion?: string
     /**
      * The model this engine is configured to serve, for an engine that runs one
-     * model per process (vLLM). Empty string when none is chosen — the state in
-     * which the engine refuses to start. Undefined for every other engine.
+     * model per process (vLLM, SGLang). Empty string when none is chosen — the
+     * state in which the engine refuses to start. Undefined for every other
+     * engine.
      */
     servedModel?: string
 }

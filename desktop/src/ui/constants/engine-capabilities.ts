@@ -66,5 +66,27 @@ export const EngineCapabilities: Record<EngineType, EngineCaps> = {
         modelOpsWhenStopped: false,
         hasDeleteModel: false,
         hasServedModel: true
+    },
+    sglang: {
+        hasExpiry: false,
+        // SGLang, like vLLM, keeps its one served model resident for the life of
+        // the process. There is nothing to eject short of stopping the engine.
+        hasEject: false,
+        // SGLang targets Linux with CUDA/ROCm and publishes no Windows or macOS
+        // GPU build, so PAIR only offers to install it on Linux. Its manifest
+        // ships Linux platforms only, so the engine reports unavailable
+        // everywhere else.
+        hasInstall: ['linux'],
+        hasEnginePort: true,
+        hasInstallPath: false,
+        hasProxyWebUI: false,
+        hasPreferredNode: false,
+        hasCrashAlert: false,
+        hasModelSearchOnlyWhenRunning: true,
+        // SGLang has no model-management surface: weights are fetched by the
+        // engine itself when it starts, from the model path configured below.
+        modelOpsWhenStopped: false,
+        hasDeleteModel: false,
+        hasServedModel: true
     }
 }

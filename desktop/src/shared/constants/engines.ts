@@ -9,18 +9,19 @@ import { EngineType, ModelExpiry } from '@/shared/types/engines'
 // never-enabled placeholders; they were removed with the chat window, which was
 // their only in-app consumer. Adding an engine back means shipping its manifest
 // first -- an engine row without one renders commands that fail with `-32000`.
-export const EngineTypes = ['ollama', 'lm-studio', 'vllm'] as const
+export const EngineTypes = ['ollama', 'lm-studio', 'vllm', 'sglang'] as const
 
 // Kept as a distinct export so a future engine can ship behind it rather than
 // appearing the moment its type exists.
-export const EnabledEngineTypes: EngineType[] = ['ollama', 'lm-studio', 'vllm'] as const
+export const EnabledEngineTypes: EngineType[] = ['ollama', 'lm-studio', 'vllm', 'sglang'] as const
 
 export const EngineSources = ['bundled', 'detected', 'installed'] as const
 
 export const EngineDisplayNames: Record<EngineType, string> = {
     ollama: 'Ollama',
     'lm-studio': 'LM Studio',
-    vllm: 'vLLM'
+    vllm: 'vLLM',
+    sglang: 'SGLang'
 } as const
 
 /** Default docs/install URLs for built-in backends. Single source of truth for UI and adapter buildInfo(). */
@@ -30,6 +31,10 @@ export const EngineDefaultLinks: Record<EngineType, { docsUrl: string; installUr
     vllm: {
         docsUrl: 'https://docs.vllm.ai/',
         installUrl: 'https://docs.vllm.ai/en/latest/getting_started/installation/'
+    },
+    sglang: {
+        docsUrl: 'https://docs.sglang.ai/',
+        installUrl: 'https://docs.sglang.ai/get_started/install.html'
     }
 } as const
 

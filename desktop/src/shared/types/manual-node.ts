@@ -10,8 +10,10 @@
  * loopback. An unset field keeps that service's default, so an entry overrides
  * only what the operator meant to.
  *
- * `vllm` is carried and persisted but not probed yet; it is here so an entry
- * written today keeps its meaning when that engine lands.
+ * `vllm` and `sglang` name the OpenAI-compatible engines' own server ports
+ * (stock 8000 and 30000). They are carried and persisted here so a manually
+ * added node keeps whatever the operator set for them, whether or not the
+ * backend probes that port yet.
  */
 export interface ManualServicePorts {
     nodeInfo?: number
@@ -19,4 +21,5 @@ export interface ManualServicePorts {
     ollama?: number
     lmstudio?: number
     vllm?: number
+    sglang?: number
 }
