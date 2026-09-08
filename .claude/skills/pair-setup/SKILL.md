@@ -43,7 +43,7 @@ are covered.
 
 ```bash
 git clone <fork url> Personal-AI-Router && cd Personal-AI-Router
-git checkout feat/vllm-tailscale          # or main once merged
+git checkout fork/main                     # the fork's combined branch
 cd services && ./build.sh                 # stages 13 binaries in build/bin/
 ./build/bin/nvpair-tui                    # headless UI; starts broker + workers
 ```

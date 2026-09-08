@@ -9,7 +9,7 @@ SPDX-License-Identifier: Apache-2.0
 
 # Run PAIR locally
 
-Verified on 2026-09-04, macOS arm64, branch `feat/vllm-tailscale`.
+Verified on 2026-09-04, macOS arm64, branch `fork/main`.
 
 ## Toolchain (do this first, every shell)
 

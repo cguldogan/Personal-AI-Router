@@ -15,7 +15,7 @@ adds what upstream does not have yet:
 - **Scripted pairing** for headless machines: `nvpair-tui accept --pin …`
   (upstream PR #11).
 
-Everything below is for the branch `feat/vllm-tailscale`, which carries them
+Everything below is for the branch `fork/main`, which carries them
 all. Builds from this fork are **unsigned**; they are not NVIDIA releases.
 
 ## Pick the path for each machine
@@ -36,7 +36,7 @@ this fork's latest release, installs to `~/pair`, and starts PAIR's terminal
 interface in a tmux session named `pair`. No Go or Node required.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/feat/vllm-tailscale/scripts/install-headless.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cguldogan/Personal-AI-Router/fork/main/scripts/install-headless.sh | bash
 ```
 
 Useful variants:
@@ -95,7 +95,7 @@ release over it. Settings, cluster identity, and pairings are kept.
 Needs Go 1.25+, Node 25.5+ (Node 23 works in practice), and `jq`.
 
 ```bash
-git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: feat/vllm-tailscale
+git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: fork/main
 cd Personal-AI-Router/desktop
 npm install
 npm start                        # builds the services, then opens the app
