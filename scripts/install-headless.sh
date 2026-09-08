@@ -162,7 +162,7 @@ Next steps
     or invite from here (prints the PIN to type on the other side):
       $HOME_DIR/bin/nvpair-tui invite <other-address> --wait
   Watch it:              tmux attach -t pair      (detach with Ctrl-b d)
-  Engines:               a vLLM on :8000, Ollama on :11434, or LM Studio on :1234 is adopted automatically
+  Engines:               a vLLM on :8000, SGLang on :30000, Ollama on :11434, or LM Studio on :1234 is adopted automatically
   Ports to allow in:     1234 11434 14318 14319 14320 14321 14322 14323 (TCP)
   Docs:                  docs/remote-networks.mdx, docs/terminal-interface.mdx
 EOF

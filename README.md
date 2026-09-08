@@ -5,11 +5,11 @@ SPDX-License-Identifier: Apache-2.0
 
 # NVIDIA Personal AI Router (PAIR)
 
-> **This is a fork.** It adds vLLM as an engine, nodes across overlay networks
-> such as Tailscale, and scripted pairing for headless machines, all proposed
-> upstream as PRs #9, #10, and #11. **To install this fork, follow
-> [INSTALL-FORK.md](INSTALL-FORK.md).** Builds from here are unsigned and are
-> not NVIDIA releases. The rest of this README is the upstream documentation.
+> **This is a fork.** It adds vLLM and SGLang as engines, nodes across overlay
+> networks such as Tailscale, and scripted pairing for headless machines, all
+> but SGLang proposed upstream as PRs #9, #10, and #11. **To install this fork,
+> follow [INSTALL-FORK.md](INSTALL-FORK.md).** Builds from here are unsigned and
+> are not NVIDIA releases. The rest of this README is the upstream documentation.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Security Policy](https://img.shields.io/badge/security-policy-green.svg)](SECURITY.md)
@@ -48,7 +48,7 @@ one, and both report live GPU and memory use throughout.
 | **Architectures** | x64 and arm64 on all three. Windows on ARM is experimental. |
 | **Installers** | Windows `.exe`; Linux `.deb`; macOS `.dmg`. On other Linux distributions, [build from source](docs/building.mdx). |
 | **Mixing nodes** | Windows, Linux, and macOS nodes can all be paired with each other |
-| **Inference engines** | Ollama, LM Studio, and vLLM (Linux) |
+| **Inference engines** | Ollama, LM Studio, and — on Linux — vLLM and SGLang |
 
 **PAIR running on a machine does not mean an engine will.** PAIR itself runs on
 any supported Windows, Linux, or macOS machine. Each engine sets its own requirements
@@ -110,10 +110,10 @@ you want by its full filename instead.
   status there.
 
 - **Get an engine running.** On the node's card, open **Engine settings** and
-  select **Install** next to Ollama, LM Studio, or (on Linux) vLLM. PAIR
-  downloads and sets the
-  engine up for you, so nothing needs to be in place beforehand. If PAIR already
-  found an engine you installed yourself, start that one instead.
+  select **Install** next to Ollama, LM Studio, or (on Linux) vLLM or SGLang.
+  PAIR downloads and sets the engine up for you, so nothing needs to be in place
+  beforehand. If PAIR already found an engine you installed yourself, start that
+  one instead.
 
   ![The Install engines dialog with Ollama downloading, reporting progress as it installs.](docs/assets/onboarding/engine-lifecycle/01-engine-installing.png)
 
@@ -160,9 +160,9 @@ The reply is ordinary OpenAI-shaped JSON, abbreviated here:
 }
 ```
 
-If you changed a port, or you are using LM Studio or vLLM rather than Ollama,
-copy the
-URL from **Endpoints → API endpoints** instead of assuming the one above.
+If you changed a port, or you are using LM Studio, vLLM, or SGLang rather than
+Ollama, copy the URL from **Endpoints → API endpoints** instead of assuming the
+one above.
 
 That is a single machine working. To route across machines, pair a second one
 from **Settings → Cluster** and repeat the engine and model steps there. The
