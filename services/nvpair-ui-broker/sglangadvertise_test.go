@@ -22,7 +22,7 @@ import (
 // loopback port is handed to that proxy as the sglang backend.
 func TestSGLangAdvertisesTheProxyPortNotTheEnginePort(t *testing.T) {
 	engine := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/health" {
+		if r.URL.Path != "/get_model_info" {
 			http.Error(w, "not sglang", http.StatusNotFound)
 			return
 		}
@@ -44,7 +44,7 @@ func TestSGLangAdvertisesTheProxyPortNotTheEnginePort(t *testing.T) {
 	// fallback at the stub by probing it directly.
 	client := &http.Client{Timeout: 2 * time.Second}
 	if !checkSGLangHealth(client, enginePort) {
-		t.Fatal("stub did not answer /health")
+		t.Fatal("stub did not answer /get_model_info")
 	}
 
 	b.reconcileAdvertiseSGLangAt(client, enginePort, true)

@@ -416,14 +416,17 @@ func checkVLLMHealth(client *http.Client, port int) bool {
 }
 
 // checkSGLangHealth reports whether a local SGLang server is answering on the
-// given port. SGLang exposes /health like vLLM does, and it is a stronger signal
-// here than elsewhere: SGLang binds its port only once the model is loaded, so a
-// listening /health means ready to serve, not merely started. Like vLLM's, this
-// is a route the OpenAI proxy's own facade does not answer, so the proxy can
-// never be mistaken for the engine. The port is resolved per poll (see
-// localEnginePort), not hardcoded.
+// given port. It asks for /get_model_info, SGLang's own metadata route, rather
+// than /health: on current SGLang builds /health runs a real forward pass and
+// takes about a second, and this loop runs every five seconds, so probing it
+// would spend a fifth of the engine's time answering PAIR. /get_model_info
+// answers in well under a millisecond, and because SGLang binds its port only
+// once the model is loaded, a 200 from it means ready to serve, not merely
+// started. It is also a route neither vLLM nor the OpenAI proxy's own facade
+// answers, so nothing else can be mistaken for the engine. The port is resolved
+// per poll (see localEnginePort), not hardcoded.
 func checkSGLangHealth(client *http.Client, port int) bool {
-	resp, err := client.Get(fmt.Sprintf("http://localhost:%d/health", port))
+	resp, err := client.Get(fmt.Sprintf("http://localhost:%d/get_model_info", port))
 	if err != nil {
 		return false
 	}

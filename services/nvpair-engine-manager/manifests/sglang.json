@@ -25,8 +25,8 @@
     "extra_args": [],
     "port": 30000,
     "bind": "127.0.0.1",
-    "ready": { "http": "http://127.0.0.1:{port}/health", "status": 200, "timeout_s": 1800 },
-    "health": { "http": "http://127.0.0.1:{port}/health", "status": 200, "interval_s": 10 }
+    "ready": { "http": "http://127.0.0.1:{port}/get_model_info", "status": 200, "timeout_s": 1800 },
+    "health": { "http": "http://127.0.0.1:{port}/get_model_info", "status": 200, "interval_s": 10 }
   },
   "platforms": {
     "linux/amd64": {},
