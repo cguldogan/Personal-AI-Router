@@ -134,18 +134,18 @@ type Fetch struct {
 //     (e.g. LM Studio's `lms`); liveness = the readiness/health probe,
 //     and Stop.Cmd brings it down.
 type Runtime struct {
-	Mode string            `json:"mode,omitempty"`
-	Bin  string            `json:"bin,omitempty"`
-	Args []string          `json:"args,omitempty"`
+	Mode string   `json:"mode,omitempty"`
+	Bin  string   `json:"bin,omitempty"`
+	Args []string `json:"args,omitempty"`
 	// ExtraArgs are appended after Args on every launch. They exist so a
 	// per-user manifest override can add engine flags (vLLM's
 	// --gpu-memory-utilization, --max-model-len, …) without restating the
 	// bundled Args array, which a deep merge would replace wholesale.
 	ExtraArgs []string          `json:"extra_args,omitempty"`
 	Env       map[string]string `json:"env,omitempty"`
-	Port  int               `json:"port"`            // 0 => auto-assign a free loopback port
-	Bind  string            `json:"bind,omitempty"`  // listen addr, substituted as {host}; "" => 127.0.0.1
-	Start [][]string        `json:"start,omitempty"` // command mode: ordered bring-up commands
+	Port      int               `json:"port"`            // 0 => auto-assign a free loopback port
+	Bind      string            `json:"bind,omitempty"`  // listen addr, substituted as {host}; "" => 127.0.0.1
+	Start     [][]string        `json:"start,omitempty"` // command mode: ordered bring-up commands
 	// CLI is the engine's control-CLI path for this platform, referenced
 	// elsewhere as {cli}. It lets the manifest's global actions resolve
 	// to the correct per-OS binary (e.g. lms.exe vs lms).

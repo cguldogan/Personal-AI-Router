@@ -91,8 +91,8 @@ const (
 	// OpenAI-compatible proxy that fronts LM Studio. A node may advertise lm and
 	// vl at once (both point at that one proxy port); which engine owns a given
 	// model comes from the engine-manager model attribution, not from the key.
-	ServiceVLLM   ServiceKey = "vl"
-	ServiceErrors ServiceKey = "er"
+	ServiceVLLM     ServiceKey = "vl"
+	ServiceErrors   ServiceKey = "er"
 	ServiceWorkload ServiceKey = "wl"
 	ServiceCluster  ServiceKey = "cl"
 	// ServiceEngineManager is nvpair-engine-manager's LAN HTTP endpoint (the model
