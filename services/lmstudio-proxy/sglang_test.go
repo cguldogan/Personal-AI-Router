@@ -213,8 +213,9 @@ func TestAddManualAcceptsSGLang(t *testing.T) {
 }
 
 // TestAddManualRejectsAnUnfrontedEngine is the other half of the boundary
-// check: a typo must be refused rather than creating an entry nothing can route
-// to. Ollama is the realistic mistake — it is an engine, just not one of ours.
+// check: a near-miss on an engine name must be refused rather than creating an
+// entry nothing can route to, and the rejection must name the engines that are
+// accepted so the caller can see sglang is among them.
 func TestAddManualRejectsAnUnfrontedEngine(t *testing.T) {
 	rw := &captureRW{}
 	disc := NewDiscovery()

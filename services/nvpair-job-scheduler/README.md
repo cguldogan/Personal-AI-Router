@@ -58,7 +58,7 @@ neutral pressure of 1.
 
 Nodes are sorted by `pending + gpuPressure`, then lower GPU pressure, then
 stable node ID. Pending counts include **every** engine together, so Ollama load
-affects the LM Studio and vLLM ordering and vice versa.
+affects the LM Studio, vLLM and SGLang ordering and vice versa.
 
 Rankings are recomputed when the node set, catalog, or effective pressure
 changes, and reconciled on the interval timer. A ranking is only emitted when
@@ -66,7 +66,8 @@ the order, pending counts, or pressure actually changed.
 
 ## Output
 
-One `schedule:priority` notification per engine (`ollama`, `lmstudio`, `vllm`):
+One `schedule:priority` notification per engine (`ollama`, `lmstudio`, `vllm`,
+`sglang`):
 
 ```json
 {
@@ -84,7 +85,7 @@ One `schedule:priority` notification per engine (`ollama`, `lmstudio`, `vllm`):
 ```
 
 The broker relays each snapshot to the matching proxy as `node/set-priority`;
-`lmstudio` and `vllm` both resolve to the one OpenAI-compatible proxy. Every
+`lmstudio`, `vllm` and `sglang` all resolve to the one OpenAI-compatible proxy. Every
 engine currently receives the same node-wide ordering; the per-engine envelope
 exists so the routing contract can diverge later without a wire change.
 

@@ -54,8 +54,9 @@ func buildAllowedPlaceholders() map[string]bool {
 		out[k] = true
 	}
 	// model is the served model of an engine that runs one model per process
-	// (vLLM's `vllm serve <model>`): read from runtime.model at start, set
-	// persistently by engine:set-model, overridable per call by engine:start.
+	// (vLLM's `vllm serve <model>`, SGLang's `sglang serve --model-path
+	// <model>`): read from runtime.model at start, set persistently by
+	// engine:set-model, overridable per call by engine:start.
 	out["model"] = true
 	return out
 }
@@ -151,7 +152,7 @@ type Runtime struct {
 	// to the correct per-OS binary (e.g. lms.exe vs lms).
 	CLI string `json:"cli,omitempty"`
 	// Model is the model this engine serves, for an engine that serves exactly
-	// one model per process (vLLM). It is substituted as {model} in Args /
+	// one model per process (vLLM, SGLang). It is substituted as {model} in Args /
 	// ExtraArgs / Start. Empty means "not configured": starting an engine whose
 	// launch template references {model} then fails with an actionable error
 	// instead of spawning a process that cannot serve anything.

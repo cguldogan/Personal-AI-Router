@@ -5,8 +5,8 @@ SPDX-License-Identifier: Apache-2.0
 
 # nvpair-engine-manager
 
-A config-driven control plane for local inference engines (Ollama, LM Studio and
-vLLM today; others via a dropped-in manifest). It manages everything about an
+A config-driven control plane for local inference engines (Ollama, LM Studio,
+vLLM and SGLang today; others via a dropped-in manifest). It manages everything about an
 engine **except serving inference**: detect, user-mode install,
 start/stop/restart, health, and config-declared actions. Adding an engine
 is a JSON manifest, not code.
@@ -54,7 +54,7 @@ Requests (caller → service):
 
 `EngineStatus` = `{ engine, display_name, installed, running, healthy, port, model? }`.
 `model` is the engine's configured served model, present only for an engine that
-serves one model per process (vLLM) and only once one has been chosen.
+serves one model per process (vLLM, SGLang) and only once one has been chosen.
 
 Notifications (service → caller): `engine:ready{version}`,
 `engine:state-changed{EngineStatus}`,
@@ -89,7 +89,8 @@ service side, so the read loop never blocks and their responses arrive when
 the op finishes.
 
 `engine:set-model` is the persistent served-model setter, for an engine whose
-launch command names the model it serves (vLLM's `vllm serve <model>`). It
+launch command names the model it serves (vLLM's `vllm serve <model>`, SGLang's
+`sglang serve --model-path <model>`). It
 writes a `{ engine, runtime: { model } }` delta into the same per-user override
 file `engine:set-port` uses — both setters read-modify-write it, so neither
 clobbers the other, and the file is removed only once no override remains — and
@@ -129,9 +130,10 @@ when one is pinned (an unpinned fetch runs with a loud warning). Start
 waits for the readiness probe, then runs a periodic health probe; an
 unexpected exit is reported. The bundled Ollama manifest allows up to ten
 minutes for startup because GPU discovery can exceed the previous 30-second
-allowance on supported Windows systems. The bundled vLLM manifest allows thirty:
-its first start downloads the model's weights and captures CUDA graphs before it
-serves anything. The deadline remains finite: if Ollama
+allowance on supported Windows systems. The bundled vLLM and SGLang manifests
+allow thirty: their first start downloads the model's weights and warms up the
+GPU before either serves anything, and SGLang does not open its port at all until
+the model is loaded. The deadline remains finite: if Ollama
 never serves its readiness endpoint, engine-manager stops the owned process and
 reports the failed start. Stop sends one stop signal and waits for the engine
 to exit, with no timeout: SIGTERM to the process group on Unix (graceful, no
