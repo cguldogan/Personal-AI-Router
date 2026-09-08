@@ -1,6 +1,6 @@
 ---
 name: pair-setup
-description: Install NVIDIA Personal AI Router (PAIR) on a machine, pair machines into a cluster (LAN or Tailscale), expose engines (Ollama, LM Studio, vLLM), and diagnose "Pairing failed" or a node that shows no engines. Use for any setup, pairing, cluster, port, or remote-node question about PAIR.
+description: Install NVIDIA Personal AI Router (PAIR) on a machine, pair machines into a cluster (LAN or Tailscale), expose engines (Ollama, LM Studio, vLLM, SGLang), and diagnose "Pairing failed" or a node that shows no engines. Use for any setup, pairing, cluster, port, or remote-node question about PAIR.
 ---
 <!--
 SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
@@ -17,7 +17,8 @@ says so.
 ## The one rule that explains most failures
 
 **Every machine that should take part must run PAIR itself.** A machine that
-only runs an engine (a bare `vllm serve`, `ollama serve`, LM Studio) can be a
+only runs an engine (a bare `vllm serve`, `sglang serve`, `ollama serve`, LM
+Studio) can be a
 routing target, but it can never be *paired*: pairing talks to the peer's PAIR
 cluster service on TCP 14321, and an engine-only box has nothing listening there.
 "Pairing failed. Please try again." on an invite to such a box is the expected
@@ -25,14 +26,15 @@ outcome, not a transient error.
 
 ## Install PAIR
 
-| Platform | Upstream release | This fork (vLLM + Tailscale support) |
+| Platform | Upstream release | This fork (vLLM + SGLang + Tailscale support) |
 | --- | --- | --- |
 | Windows | run the `.exe`, approve firewall prompts | not packaged; build from source |
 | Debian/Ubuntu | `sudo apt install "./NVPAIR-Setup-VERSION-ARCH.deb"` | build from source, run headless (below) |
 | macOS | open `.dmg`, drag to Applications | `cd desktop && npm start` (see the `pair-run` skill) |
 
-The upstream package lacks vLLM and cross-tailnet support. For a peer reached
-over Tailscale, or a vLLM host, the peer must run **this fork's** binaries.
+The upstream package lacks vLLM, SGLang, and cross-tailnet support. For a peer
+reached over Tailscale, or a vLLM or SGLang host, the peer must run **this
+fork's** binaries.
 
 ### Build from source on a Linux box (DGX, DGX Spark, any Ubuntu)
 
@@ -53,15 +55,19 @@ hand. Tabs: Engines (`i` install, `s` start, `x` stop), Cluster (`i` invite,
 ## First run
 
 1. Welcome step lists installable engines for the platform: Ollama and LM Studio
-   everywhere, vLLM on Linux only (never pre-selected; it downloads a CUDA stack
-   and then a model).
+   everywhere, vLLM and SGLang on Linux only (never pre-selected; they download a
+   CUDA stack and then a model).
 2. An engine already running on its default port is **adopted**, not restarted:
-   Ollama on 11434, LM Studio on 1234, vLLM on 8000. Adoption works even when the
-   engine is bound to 127.0.0.1, because peers reach it through this machine's
-   own proxy over mTLS. This is the normal way to bring an existing vLLM in.
-3. vLLM serves one model per process. Set **Model to serve** (a Hugging Face id)
-   in Engine settings before starting it through PAIR. An adopted vLLM already
-   has its model and needs nothing.
+   Ollama on 11434, LM Studio on 1234, vLLM on 8000, SGLang on 30000. Adoption
+   works even when the engine is bound to 127.0.0.1, because peers reach it
+   through this machine's own proxy over mTLS. This is the normal way to bring an
+   existing vLLM or SGLang in.
+3. vLLM and SGLang each serve one model per process. Set **Model to serve** (a
+   Hugging Face id, or a local model directory for SGLang) in Engine settings
+   before starting one through PAIR. An adopted instance already has its model
+   and needs nothing.
+4. SGLang opens port 30000 only once the model has finished loading, so a node
+   shows no SGLang at all until it is ready.
 
 ## Pair two machines
 
@@ -103,7 +109,7 @@ Trust is transitive: pairing A↔B and A↔C also lets B and C talk.
   host in plaintext inside the tunnel. Once PAIR runs there it flips to a full
   peer automatically within a few probe cycles.
 
-## Multi-node vLLM (tensor parallel across machines)
+## Multi-node vLLM or SGLang (tensor parallel across machines)
 
 A vLLM instance started with `--tensor-parallel-size 2 --nnodes 2` spans two
 machines: the head (`--node-rank 0`) owns the API on 8000, the worker
@@ -114,13 +120,29 @@ Check with `docker inspect <name> --format '{{join .Config.Cmd " "}}'` and look
 for `--node-rank`/`--headless` before calling a silent vLLM "hung".
 Details: `docs/engine-lifecycle.mdx`, "One instance can span several machines".
 
+SGLang works the same way, with its own flags and no `--headless`: every rank
+gets a `--node-rank` and they all point at the head's `--dist-init-addr`. In the
+`lmsysorg/sglang` container, two machines serving one model are
+
+```bash
+# head node
+sglang serve --model-path /models/qwen38-nvfp4 --tp 2 --nnodes 2 --node-rank 0 \
+  --dist-init-addr 10.100.16.1:20000 --host 0.0.0.0 --port 30000
+# second machine: the same command with --node-rank 1
+```
+
+PAIR adopts it on the head only; rank 1 correctly shows no engine, and 30000 is
+closed there. Never restart a worker rank alone. A head that looks silent may
+simply still be loading — SGLang opens 30000 only when the model is ready.
+
 ## Ports
 
 | Port | Purpose |
 | --- | --- |
 | 11434 | Ollama-compatible proxy (clients talk here). Ollama engine itself moves to 11435+ |
-| 1234 | OpenAI-compatible proxy for LM Studio **and vLLM** (clients talk here). LM Studio engine on 1235+ |
+| 1234 | OpenAI-compatible proxy for LM Studio, **vLLM and SGLang** (clients talk here). LM Studio engine on 1235+ |
 | 8000 | vLLM engine (adopted in place; never moved) |
+| 30000 | SGLang engine (adopted in place; never moved; opens only when the model is loaded) |
 | 5353/udp | mDNS discovery (LAN only) |
 | 14318 | node-info: hardware, telemetry, service map |
 | 14319 | service-error sync |
@@ -139,7 +161,9 @@ behaviour, not a bug.
   `http://127.0.0.1:1234/v1/chat/completions`; Ollama-style use
   `http://127.0.0.1:11434/api/chat`. Name the model exactly as `/v1/models` or
   `/api/tags` lists it. The proxy routes to whichever node holds it.
-- vLLM and LM Studio models appear together in one `/v1/models`.
+- LM Studio, vLLM, and SGLang models appear together in one `/v1/models`. SGLang
+  lists a local model under its directory path unless `--served-model-name` was
+  set, so copy the id from `/v1/models` rather than typing it.
 
 ## Diagnose a failed invite or an engine-less node
 
@@ -147,24 +171,30 @@ Run from the inviting machine, replacing the address:
 
 ```bash
 tailscale ping -c 2 <addr>                      # tunnel up?
-for p in 14318 14321 14322 11434 1234 8000; do
+for p in 14318 14321 14322 11434 1234 8000 30000; do
   printf "%s: " $p; nc -z -w 3 <addr> $p && echo open || echo closed; done
 curl -s http://<addr>:14318/v1/node-info | head -c 300   # PAIR running there?
 curl -s http://<addr>:8000/version                        # vLLM reachable?
+curl -s http://<addr>:30000/get_model_info                # SGLang reachable?
 ```
+
+`/get_model_info` is how PAIR tells a bare SGLang host apart from any other
+OpenAI-compatible server on that address; only SGLang answers it.
 
 | Symptom | Meaning | Fix |
 | --- | --- | --- |
 | 14321 closed, 14318 closed | PAIR is not running on the peer | build and run `nvpair-tui` there, invite again |
 | only 8000 open | bare vLLM host; routable, not pairable | fine as is, or install PAIR there for telemetry, scheduling and mTLS |
+| only 30000 open | bare SGLang host; routable, not pairable | as above |
 | only 22 open, peer "runs vLLM" | vLLM bound to 127.0.0.1 | install PAIR there (it adopts loopback engines), or restart vLLM with `--host 0.0.0.0` |
+| 30000 closed, SGLang says it started | SGLang is still loading the model | wait; it binds 30000 only when the model is ready. A worker rank never binds it at all |
 | `probe-failed` error after 30 s | nothing answered on any port | as above; if added by IP and the box was renumbered, re-add by hostname |
 | 14318 answers but no models | not paired yet; inventory is served only to pinned peers | complete pairing |
 
 Desktop logs: run the app from `desktop/` with `npm start` and read stdout, or
 collect logs with `scripts/collect-logs.sh`. Manual-node probe results appear as
 `node/discovered` / `node/updated` lines with `ollama_up`, `lmstudio_up`,
-`vllm_up`, `node_info_up`, `pair_node`.
+`vllm_up`, `sglang_up`, `node_info_up`, `pair_node`.
 
 ## How PAIR decides (what to expect, and why)
 
@@ -186,13 +216,13 @@ collect logs with `scripts/collect-logs.sh`. Manual-node probe results appear as
 - **Inventory is served only to pinned peers.** A node card with hardware but
   no models means "not paired yet", not "no engines".
 - **Adoption.** PAIR adopts an engine already on its port and will not stop or
-  move it: Ollama and vLLM are process-managed (port change refused), LM Studio
-  can be stopped with `lms server stop` and restarted on the new port. An
+  move it: Ollama, vLLM and SGLang are process-managed (port change refused), LM
+  Studio can be stopped with `lms server stop` and restarted on the new port. An
   unknown process on a port is never killed; the proxy moves and warns instead.
 - **Engine CLIs** are not on PATH. Ollama lives in
   `<app data>/engine-bin/ollama/`; point `OLLAMA_HOST` at the *engine* port
   (11435) to see the local machine, at 11434 to see the cluster. LM Studio uses
-  `~/.lmstudio/bin/lms`. vLLM weights sit in `~/.cache/huggingface`.
+  `~/.lmstudio/bin/lms`. vLLM and SGLang weights sit in `~/.cache/huggingface`.
 - **Pairing PIN** is one attempt, 5 min TTL, six digits, low entropy. A wrong
   PIN or a restart mid-pairing ends the invite; issue a fresh one rather than
   retrying. Pair only on networks you trust.
