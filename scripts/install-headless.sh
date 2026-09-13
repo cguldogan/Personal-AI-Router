@@ -129,6 +129,9 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 command -v tmux >/dev/null || { echo "tmux is required (apt install tmux / brew install tmux)" >&2; exit 1; }
 if tmux has-session -t pair 2>/dev/null; then echo "PAIR is already running: tmux attach -t pair"; exit 0; fi
+# Proxies inherit this environment. To change how long a non-streaming
+# completion may stay silent before the proxy gives up (default 30m):
+#   export NVPAIR_PROXY_RESPONSE_HEADER_TIMEOUT=1h   # or 0 to wait indefinitely
 tmux new -d -s pair "cd '$DIR/bin' && ./nvpair-tui --log-level info 2>>'$DIR/pair.log'"
 echo "PAIR started in tmux session 'pair'. Attach: tmux attach -t pair   Log: $DIR/pair.log"
 EOF
