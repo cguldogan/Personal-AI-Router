@@ -129,8 +129,8 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 command -v tmux >/dev/null || { echo "tmux is required (apt install tmux / brew install tmux)" >&2; exit 1; }
 if tmux has-session -t pair 2>/dev/null; then echo "PAIR is already running: tmux attach -t pair"; exit 0; fi
-# Proxies inherit this environment. To change how long a non-streaming
-# completion may stay silent before the proxy gives up (default 30m):
+# nvpair-proxy inherits this environment. To change how long an engine may
+# stay silent before the proxy gives up on a request (default 30m):
 #   export NVPAIR_PROXY_RESPONSE_HEADER_TIMEOUT=1h   # or 0 to wait indefinitely
 tmux new -d -s pair "cd '$DIR/bin' && ./nvpair-tui --log-level info 2>>'$DIR/pair.log'"
 echo "PAIR started in tmux session 'pair'. Attach: tmux attach -t pair   Log: $DIR/pair.log"
@@ -165,7 +165,7 @@ Next steps
     or invite from here (prints the PIN to type on the other side):
       $HOME_DIR/bin/nvpair-tui invite <other-address> --wait
   Watch it:              tmux attach -t pair      (detach with Ctrl-b d)
-  Engines:               a vLLM on :8000, Ollama on :11434, or LM Studio on :1234 is adopted automatically
-  Ports to allow in:     1234 11434 14318 14319 14320 14321 14322 14323 (TCP)
+  Engines:               an Ollama (:11434) or LM Studio (:1234) already running here is adopted; PAIR installs and runs llama.cpp (:8080) itself
+  Ports to allow in:     1234 8080 11434 14318 14319 14320 14321 14322 14323 (TCP)
   Docs:                  docs/remote-networks.mdx, docs/terminal-interface.mdx
 EOF

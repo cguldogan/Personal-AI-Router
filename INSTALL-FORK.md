@@ -6,17 +6,26 @@ SPDX-License-Identifier: Apache-2.0
 # Installing this fork
 
 This fork of [NVIDIA Personal AI Router](https://github.com/NVIDIA/Personal-AI-Router)
-adds what upstream does not have yet:
+is upstream's 1.0.0 plus the changes still under review there:
 
-- **vLLM** as a third inference engine (upstream PR #9), and **SGLang** as a
-  fourth alongside it.
 - **Nodes across an overlay network** such as a Tailscale tailnet, added by
   address or MagicDNS name and treated as full peers (upstream PR #10).
 - **Scripted pairing** for headless machines: `nvpair-tui accept --pin …`
   (upstream PR #11).
+- **Per-job inference stats** (tokens per second, token counts, time to first
+  token) in the Jobs list (upstream PR #51).
+- **A 30-minute response timeout**, configurable, so long or queued
+  non-streaming requests are not cut off at 2 minutes (upstream PR #74).
+- **Hidden windows throttle** in the desktop app (upstream PR #73).
+- A headless installer, prebuilt release bundles, and an ad-hoc signature on
+  the macOS app.
 
 Everything below is for the branch `fork/main`, which carries them
 all. Builds from this fork are **unsigned**; they are not NVIDIA releases.
+
+Earlier fork builds also carried vLLM and SGLang engines. Those were written
+against the proxies upstream has since replaced, and are not in this build;
+upstream's own vLLM work is in its PR #125.
 
 ## Pick the path for each machine
 
@@ -57,10 +66,15 @@ tmux attach -t pair              # the terminal interface; detach with Ctrl-b d
 ~/pair/bin/nvpair-tui members    # cluster membership, from any shell
 ```
 
-An engine already running on the box is adopted automatically: vLLM on port
-8000, SGLang on 30000, Ollama on 11434, LM Studio on 1234. A vLLM or SGLang that
-spans several machines (`--nnodes N`) is adopted on its head node only; the
-other ranks correctly show no engine.
+An Ollama (port 11434) or LM Studio (port 1234) already running on the box is
+adopted automatically. PAIR can also install and run an engine itself,
+including llama.cpp: open the machine from the Nodes tab and press `i`. llama.cpp's
+proxy listens on port 8080.
+
+To give engines longer than 30 minutes to start answering a request, set
+`NVPAIR_PROXY_RESPONSE_HEADER_TIMEOUT` (for example `1h`, or `0` for no limit)
+in `~/pair/pair-start.sh` and restart PAIR. Set it on every machine a request
+may pass through.
 
 ## Desktop application from a release package
 
@@ -88,11 +102,12 @@ xattr -dr com.apple.quarantine /Applications/PAIR.app
 ```
 
 A package from here never checks an update feed; upgrade by installing the next
-release over it. Settings, cluster identity, and pairings are kept.
+release over it. Settings, cluster identity, and pairings are kept. The terminal
+interface's update notice watches upstream's releases, not this fork's.
 
 ## Desktop application from source
 
-Needs Go 1.25+, Node 25.5+ (Node 23 works in practice), and `jq`.
+Needs Go 1.25+, Node 25.5+, and `jq`.
 
 ```bash
 git clone https://github.com/cguldogan/Personal-AI-Router.git   # default branch: fork/main
@@ -128,15 +143,16 @@ Or the other way round, from the headless box:
 Two headless boxes pair each other with `invite` on one and `accept` on the
 other. Trust is transitive: pairing A with B and A with C also connects B and C.
 
-Ports each PAIR machine must accept from the others: TCP 1234, 11434, 14318,
-14319, 14320, 14321, 14322, 14323. On a Tailscale tailnet with the default
+Ports each PAIR machine must accept from the others: TCP 1234, 8080, 11434,
+14318, 14319, 14320, 14321, 14322, 14323. On a Tailscale tailnet with the default
 "allow all" policy nothing needs opening; a locked-down ACL snippet is in
 [docs/remote-networks.mdx](docs/remote-networks.mdx).
 
 ## Use it
 
-Point any OpenAI-compatible client at `http://127.0.0.1:1234/v1` on a machine
-running PAIR, or any Ollama client at `http://127.0.0.1:11434`. `GET /v1/models`
+Point any OpenAI-compatible client at `http://127.0.0.1:1234/v1` (LM Studio
+models) or `http://127.0.0.1:8080/v1` (llama.cpp models) on a machine running
+PAIR, or any Ollama client at `http://127.0.0.1:11434`. `GET /v1/models`
 lists every model the cluster serves; a request naming one is routed to a node
 that holds it, over mutual TLS. **Endpoints** in the desktop app shows the same.
 
@@ -146,10 +162,11 @@ that holds it, over mutual TLS. **Endpoints** in the desktop app shows the same.
   blocked. `curl http://<addr>:14318/v1/node-info` answers when PAIR is up.
 - **Node shows but no models** — pair it first; a node serves its inventory only
   to paired peers.
-- **Node shows no engine** — nothing is listening on the engine's default port on
-  that machine, or it is a non-head rank of a multi-node vLLM or SGLang. SGLang
-  opens port 30000 only once the model has finished loading, so a node that is
-  still loading shows no SGLang until it is ready.
+- **Node shows no engine** — no engine is running on that machine, or it runs
+  on a port PAIR does not know. In the terminal interface, open the machine
+  from the Nodes tab and press `i` to install an engine or `s` to start it.
+- **A request fails after exactly 30 minutes** — raise
+  `NVPAIR_PROXY_RESPONSE_HEADER_TIMEOUT` on every machine involved.
 
 More: [docs/remote-networks.mdx](docs/remote-networks.mdx),
 [docs/terminal-interface.mdx](docs/terminal-interface.mdx),

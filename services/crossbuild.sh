@@ -8,9 +8,13 @@
 #   ./crossbuild.sh linux arm64 /tmp/pair-linux-arm64/bin
 #
 # Every module is pure Go (no cgo), so any host can build for any supported
-# target. Versions come from versions.json exactly as build.sh reads them, and
-# the same -X main.Version ldflag is applied, so a cross-built binary reports the
-# same version as a native one. Windows targets get a .exe suffix.
+# target. Versions come from versions.json and desktop/package.json exactly as
+# build.sh reads them, and the same ldflags are applied, so a cross-built binary
+# reports the same versions as a native one. Windows targets get a .exe suffix.
+#
+# The set mirrors build.sh: twelve components from versions.json plus
+# inference-dispatcher, which lives at scripts/inference-dispatcher and is
+# stamped with the services version.
 #
 # build.sh remains the native build for local development; this script exists
 # for release bundles and for staging a headless machine from another host.
@@ -35,15 +39,35 @@ command -v go >/dev/null || { echo "ERROR: go is required (see docs/building.mdx
 SUFFIX=""
 [[ "$GOOS_TARGET" == "windows" ]] && SUFFIX=".exe"
 
+V_SERVICES=$(jq -r '.services' "$VERSIONS_FILE")
+V_RELEASE=$(jq -r '.version' "$ROOT/../desktop/package.json" 2>/dev/null)
+for v in "$V_SERVICES" "$V_RELEASE"; do
+    if [[ -z "$v" || "$v" == "null" ]]; then
+        echo "ERROR: could not read the services version (versions.json) or the release version (desktop/package.json)" >&2
+        exit 1
+    fi
+done
+
 COMPONENTS=(
-    ollama-proxy lmstudio-proxy nvpair-node-info nvpair-node-scanner
+    nvpair-proxy nvpair-node-info nvpair-node-scanner
     nvpair-manual-nodes nvpair-workload-manager nvpair-errors
     nvpair-engine-manager nvpair-node-settings nvpair-ui-broker
     nvpair-cluster-manager nvpair-job-scheduler nvpair-tui
 )
+DISPATCHER_SRC="$ROOT/../scripts/inference-dispatcher"
+TOTAL=$(( ${#COMPONENTS[@]} + 1 ))
+
+gobuild() {
+    local out="$1" ldflags="$2"
+    CGO_ENABLED=0 GOOS="$GOOS_TARGET" GOARCH="$GOARCH_TARGET" \
+        go build -trimpath -ldflags "-s -w $ldflags" -o "$out" .
+}
 
 mkdir -p "$OUT"
-echo " Cross-building ${#COMPONENTS[@]} components for $GOOS_TARGET/$GOARCH_TARGET into $OUT"
+# Start from an empty set, like build.sh: a binary left by an older revision
+# would otherwise ride into the bundle and be counted below.
+find "$OUT" -maxdepth 1 -type f -delete
+echo " Cross-building $TOTAL binaries for $GOOS_TARGET/$GOARCH_TARGET into $OUT"
 i=0
 for name in "${COMPONENTS[@]}"; do
     i=$((i + 1))
@@ -52,16 +76,20 @@ for name in "${COMPONENTS[@]}"; do
         echo "ERROR: no version for $name in versions.json" >&2
         exit 1
     fi
-    echo "[$i/${#COMPONENTS[@]}] $name (v$version)"
-    (
-        cd "$ROOT/$name"
-        CGO_ENABLED=0 GOOS="$GOOS_TARGET" GOARCH="$GOARCH_TARGET" \
-            go build -trimpath -ldflags "-s -w -X main.Version=$version" -o "$OUT/$name$SUFFIX" .
-    )
+    ldflags="-X main.Version=$version"
+    # nvpair-tui's update notice compares the release version, not its own
+    # component version, against the published tag (see build.sh).
+    [[ "$name" == "nvpair-tui" ]] && ldflags="$ldflags -X nvpair-tui/ui.ReleaseVersion=$V_RELEASE"
+    echo "[$i/$TOTAL] $name (v$version)"
+    (cd "$ROOT/$name" && gobuild "$OUT/$name$SUFFIX" "$ldflags")
 done
+echo "[$TOTAL/$TOTAL] inference-dispatcher (v$V_SERVICES)"
+[[ -d "$DISPATCHER_SRC" ]] || { echo "ERROR: $DISPATCHER_SRC not found" >&2; exit 1; }
+(cd "$DISPATCHER_SRC" && gobuild "$OUT/inference-dispatcher$SUFFIX" "-X main.Version=$V_SERVICES")
+
 built=$(find "$OUT" -maxdepth 1 -type f | wc -l | tr -d ' ')
-if [[ "$built" -ne ${#COMPONENTS[@]} ]]; then
-    echo "ERROR: expected ${#COMPONENTS[@]} binaries in $OUT, found $built" >&2
+if [[ "$built" -ne $TOTAL ]]; then
+    echo "ERROR: expected $TOTAL binaries in $OUT, found $built" >&2
     exit 1
 fi
 echo " Done: $built binaries in $OUT"
